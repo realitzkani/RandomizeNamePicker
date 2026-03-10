@@ -578,7 +578,7 @@ function save(){
 
 // ── Randomizer settings ───────────────────────────────────────────────────────
 function toggleRandSettings(){
-  const showGear = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
+  const showGear = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner' || !joinedRoomCode;
   if(!showGear) return;
   const panel=document.getElementById('randSettings');
   const btn=document.getElementById('randSettingsBtn');
@@ -971,7 +971,7 @@ function render(){
   const sBtn=document.getElementById('startSessionBtn');
   if(sBtn) sBtn.style.display=(isOwner&&!activeRoomCode&&!joinedRoomCode)?'block':'none';
   const rsBtn=document.getElementById('randSettingsBtn');
-  const showGear = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
+  const showGear = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner' || !joinedRoomCode;
   if(rsBtn) rsBtn.style.display = showGear ? 'flex' : 'none';
   if(!showGear){ document.getElementById('randSettings').style.display='none'; }
   updateMusicVisibility();
@@ -1391,6 +1391,7 @@ async function pollRoom(){
           stopRoomPoll();
           joinedRoomCode=null; myRoomRole='viewer';
           lastMemberSet=new Set();
+          names = JSON.parse(localStorage.getItem('pickerNames')||'[]');
           renderSessionBar(); render();
           showSuccessToast('Removed from session','You were removed by the host');
           return;
@@ -1525,6 +1526,8 @@ async function leaveSession(){
 
   joinedRoomCode=null; myRoomRole='viewer';
   lastMemberSet = new Set();
+  // Restore local names (they were overwritten by server sync during session)
+  names = JSON.parse(localStorage.getItem('pickerNames')||'[]');
   renderSessionBar();
   render();
 
