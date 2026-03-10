@@ -240,6 +240,7 @@
 
 
   /* ── Session system ── */
+  .session-bar-collapsed .session-member-list,.session-bar-collapsed .session-sub { display:none; }
   .session-bar { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px 20px; margin-bottom:20px; display:flex; align-items:center; gap:14px; }
   .session-bar.active-session { border-color:var(--accent); background:var(--accent-dim); }
   .session-bar.viewer-session { border-color:var(--admin); background:var(--admin-dim); }
@@ -260,6 +261,7 @@
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
   .start-session-btn { width:100%; background:var(--surface2); border:1px dashed var(--border); border-radius:12px; padding:14px; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; color:var(--muted); cursor:pointer; transition:border-color 0.2s,color 0.2s; margin-bottom:20px; }
   .start-session-btn:hover { border-color:var(--accent); color:var(--accent); }
+  @keyframes sessionLeave { from{opacity:1;transform:scale(1)} to{opacity:0;transform:scale(0.97)} }
   @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
   @keyframes fadeIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
   @keyframes modalIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
@@ -463,7 +465,7 @@
     <div class="result-name" id="resultName">—</div>
     <div class="result-btn-row">
       <button class="pick-btn" id="pickBtn" onclick="pickName()" disabled>PICK A NAME</button>
-      <button class="settings-btn" onclick="toggleRandSettings()" title="Randomizer settings">⚙️</button>
+      <button class="settings-btn" id="randSettingsBtn" onclick="toggleRandSettings()" title="Randomizer settings">⚙️</button>
     </div>
   </div>
 
@@ -482,7 +484,7 @@
     </div>
     <div class="name-list" id="nameList"><div class="empty-state">No names yet.</div></div>
     <button class="clear-all-btn" id="clearAllBtn" style="display:none" onclick="clearAll()">Clear all</button>
-    <div class="lock-row">
+    <div class="lock-row" id="lockRow">
       <div style="font-size:18px">🔒</div>
       <div class="lock-info" id="lockInfo">Viewing only.</div>
       <button class="lock-btn" id="lockBtn" onclick="openAccessModal()" style="display:none">Manage Access</button>
@@ -559,7 +561,7 @@ let allowRepeats = LS('allowRepeats','1') === '1';
 
 const isViewerInSession = () => joinedRoomCode && myRoomRole==='viewer';
 const canEdit      = () => !isViewerInSession() && (isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner');
-const canEditTitle = () => isOwner || isAdmin;
+const canEditTitle = () => !isViewerInSession() && (isOwner || isAdmin || myRoomRole==='admin');
 const canManage    = () => isOwner;
 
 function save(){
@@ -904,6 +906,7 @@ function render(){
   document.getElementById('clearAllBtn').style.display=canEdit()&&names.length>0?'block':'none';
   document.getElementById('editHint').style.display=canEditTitle()?'block':'none';
   document.getElementById('lockBtn').style.display=canManage()?'inline-block':'none';
+  document.getElementById('lockRow').style.display=isViewerInSession()?'none':'';
 
   const badge=document.getElementById('modeBadge');
   badge.style.cssText='';
@@ -912,7 +915,7 @@ function render(){
   else{badge.textContent='● Viewer';badge.className='mode-badge viewer';}
 
   const uname=currentUser?currentUser.username:'you';
-  document.getElementById('lockInfo').textContent=isOwner?(adminPassword?'Admin password set — share the invite link.':'Set an admin password to invite trusted people.'):isAdmin?`Editing as ${uname}.`:`Viewing as ${uname}.`;
+  document.getElementById('lockInfo').textContent=isOwner?'Manage who can edit this session.':isAdmin||myRoomRole==='admin'?`Editing as ${uname}.`:`Viewing only.`;
 
   const list=document.getElementById('nameList');
   if(names.length===0){list.innerHTML='<div class="empty-state">No names yet. Add some above!</div>';updatePill();return;}
@@ -933,6 +936,9 @@ function render(){
   // session bar visibility
   const sBtn=document.getElementById('startSessionBtn');
   if(sBtn) sBtn.style.display=(isOwner&&!activeRoomCode&&!joinedRoomCode)?'block':'none';
+  const rsBtn=document.getElementById('randSettingsBtn');
+  if(rsBtn) rsBtn.style.display=isViewerInSession()?'none':'';
+  if(isViewerInSession()) document.getElementById('randSettings').classList.remove('open');
   updateMusicVisibility();
 }
 
@@ -1051,8 +1057,8 @@ async function openAccessModal(){
     <h2>🔒 Manage Access</h2>
     <p>Set a session admin password. People who join your session with the admin link and enter this password get <strong style="color:var(--admin)">⚡ Admin</strong> for that session only.</p>
     <span class="editor-label" style="margin-bottom:6px;display:block">Session Admin Password</span>
-    ${pwSet?`<div class="info-box" style="margin-bottom:10px"><div class="info-label">Currently set</div><div class="info-value admin-color">••••••••</div></div>`:''}
-    <input type="text" id="newAdminPass" placeholder="${pwSet?'Update password…':'Set a password…'}" maxlength="32"
+    ${pwSet?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:11px;background:var(--admin-dim);color:var(--admin);border:1px solid var(--admin);border-radius:20px;padding:3px 10px;letter-spacing:1px">✓ PASSWORD SET</span></div>`:''}
+    <input type="text" id="newAdminPass" placeholder="${pwSet?'Enter new password to update…':'Set a password…'}" maxlength="32"
       onkeydown="if(event.key==='Enter')saveAdminPassword()">
     <div class="modal-error" id="modalErr"></div>
     <div class="modal-btns" style="margin-bottom:${pwSet?'18px':'0'}">
@@ -1291,6 +1297,7 @@ async function endSession(){
     activeRoomCode = null;
     isRoomOwner = false;
     myRoomRole = 'viewer';
+    adminPassword = '';
     stopRoomPoll();
     renderSessionBar();
     render();
@@ -1326,6 +1333,8 @@ function startRoomPoll(){
 function stopRoomPoll(){ if(roomPollTimer){ clearInterval(roomPollTimer); roomPollTimer=null; } }
 
 let lastPick = null;
+let lastMemberSet = new Set();
+let sessionBarCollapsed = false;
 async function pollRoom(){
   const code = getRoomCode();
   if(!code) return;
@@ -1347,6 +1356,16 @@ async function pollRoom(){
       // Already pushed on every addName/removeName
     }
     renderSessionBar(room);
+    // Detect new joiners and show toast
+    if(room && room.members){
+      room.members.forEach(m=>{
+        const key = m.username+'|'+m.role;
+        if(!lastMemberSet.has(key) && lastMemberSet.size>0){
+          showJoinToast(m.username, m.role);
+        }
+      });
+      lastMemberSet = new Set(room.members.map(m=>m.username+'|'+m.role));
+    }
   } catch(e){
     if(e.message && e.message.includes('ended')){
       stopRoomPoll();
@@ -1397,8 +1416,9 @@ function renderSessionBar(room){
         <button class="session-btn" onclick="copySessionLink('${viewerLink}','view')">📋 Viewer Link</button>
         <button class="session-btn secondary" onclick="copySessionLink('${adminLink}','admin')">⚡ Admin Link</button>
         <button class="session-btn end-btn" onclick="endSession()">End Session</button>
+        <button class="session-btn secondary" onclick="toggleSessionBar()" id="sessionCollapseBtn" style="font-size:11px;padding:6px">▲ Collapse</button>
       </div>
-    `;
+    \`;
     if(startBtn) startBtn.style.display='none';
 
   } else if(joinedRoomCode){
@@ -1432,10 +1452,23 @@ function renderSessionBar(room){
 }
 
 function leaveSession(){
-  stopRoomPoll();
-  joinedRoomCode=null; myRoomRole='viewer';
-  renderSessionBar();
-  render();
+  const bar=document.getElementById('sessionBar');
+  bar.style.animation='sessionLeave 0.4s ease forwards';
+  setTimeout(()=>{
+    bar.style.animation='';
+    stopRoomPoll();
+    joinedRoomCode=null; myRoomRole='viewer';
+    renderSessionBar();
+    render();
+  },380);
+}
+
+function toggleSessionBar(){
+  sessionBarCollapsed = !sessionBarCollapsed;
+  const bar = document.getElementById('sessionBar');
+  bar.classList.toggle('session-bar-collapsed', sessionBarCollapsed);
+  const btn = document.getElementById('sessionCollapseBtn');
+  if(btn) btn.textContent = sessionBarCollapsed ? '▼ Expand' : '▲ Collapse';
 }
 
 async function joinByCode(){
@@ -1450,6 +1483,15 @@ async function joinByCode(){
   } catch(e) {
     errEl.textContent = e.message==='This session has ended.' ? 'That session has ended.' : 'Session not found. Check the code.';
   }
+}
+
+function showJoinToast(username, role){
+  const roleLabel = role==='admin'?'⚡ Admin':role==='owner'?'Owner':'👁 Viewer';
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 16px;font-size:13px;z-index:999;animation:fadeIn 0.2s ease;box-shadow:0 4px 20px #00000055;display:flex;align-items:center;gap:8px;max-width:220px';
+  t.innerHTML=`<span style="font-size:18px">👋</span><div><div style="font-weight:600">${esc(username)}</div><div style="font-size:11px;color:var(--muted)">${roleLabel} joined</div></div>`;
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.transition='opacity 0.4s';t.style.opacity='0';setTimeout(()=>t.remove(),400);},3000);
 }
 
 function copySessionLink(link, type){
