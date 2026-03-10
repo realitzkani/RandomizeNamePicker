@@ -431,31 +431,6 @@
     <button class="title-save-btn" onclick="saveTitleSettings()">SAVE</button>
   </div>
 
-  <!-- Randomizer settings panel -->
-  <div class="rand-settings" id="randSettings">
-    <span class="editor-label" style="margin-bottom:16px;display:block">⚙️ Randomizer Settings</span>
-    <div class="rand-setting-row">
-      <div class="rand-setting-label">Roll Speed<small>How fast the names cycle</small></div>
-      <input type="range" class="rand-slider" id="speedSlider" min="30" max="200" value="80" oninput="updateRandSettings()">
-      <span class="rand-val" id="speedVal">80ms</span>
-    </div>
-    <div class="rand-setting-row">
-      <div class="rand-setting-label">Roll Duration<small>How many ticks before stopping</small></div>
-      <input type="range" class="rand-slider" id="ticksSlider" min="5" max="60" value="25" oninput="updateRandSettings()">
-      <span class="rand-val" id="ticksVal">25</span>
-    </div>
-    <div class="rand-setting-row">
-      <div class="rand-setting-label">Allow Repeats<small>Same name can be picked again</small></div>
-      <label class="toggle-switch">
-        <input type="checkbox" id="allowRepeats" checked onchange="updateRandSettings()">
-        <span class="toggle-track"></span>
-      </label>
-    </div>
-    <div class="rand-setting-row" id="excludeRow" style="display:none">
-      <div class="rand-setting-label">Recent picks excluded<small id="excludeNote">Last picked names won't repeat</small></div>
-    </div>
-  </div>
-
   <!-- Session Bar -->
   <div id="sessionBar" style="display:none"></div>
 
@@ -465,7 +440,7 @@
     <div class="result-name" id="resultName">—</div>
     <div class="result-btn-row">
       <button class="pick-btn" id="pickBtn" onclick="pickName()" disabled>PICK A NAME</button>
-      <button class="settings-btn" id="randSettingsBtn" onclick="toggleRandSettings()" title="Randomizer settings">⚙️</button>
+      <button class="settings-btn" id="randSettingsBtn" onclick="toggleRandSettings()" title="Randomizer settings" style="display:none">⚙️</button>
     </div>
   </div>
 
@@ -517,6 +492,31 @@
 </div>
 
 <audio id="audioPlayer" preload="auto"></audio>
+
+<!-- Randomizer Settings Popover (floating) -->
+<div id="randSettings" style="display:none;position:fixed;z-index:80;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 24px;width:280px;box-shadow:0 8px 32px #00000066;animation:fadeIn 0.15s ease">
+  <span class="editor-label" style="margin-bottom:16px;display:block">⚙️ Randomizer Settings</span>
+  <div class="rand-setting-row">
+    <div class="rand-setting-label">Roll Speed<small>How fast the names cycle</small></div>
+    <input type="range" class="rand-slider" id="speedSlider" min="30" max="200" value="80" oninput="updateRandSettings()">
+    <span class="rand-val" id="speedVal">80ms</span>
+  </div>
+  <div class="rand-setting-row">
+    <div class="rand-setting-label">Roll Duration<small>How many ticks before stopping</small></div>
+    <input type="range" class="rand-slider" id="ticksSlider" min="5" max="60" value="25" oninput="updateRandSettings()">
+    <span class="rand-val" id="ticksVal">25</span>
+  </div>
+  <div class="rand-setting-row">
+    <div class="rand-setting-label">Allow Repeats<small>Same name can be picked again</small></div>
+    <label class="toggle-switch">
+      <input type="checkbox" id="allowRepeats" checked onchange="updateRandSettings()">
+      <span class="toggle-track"></span>
+    </label>
+  </div>
+  <div class="rand-setting-row" id="excludeRow" style="display:none">
+    <div class="rand-setting-label">Recent picks excluded<small id="excludeNote">Last picked names won't repeat</small></div>
+  </div>
+</div>
 
 <script>
 const API = 'https://randomizenamepickerbackend-production.up.railway.app';
@@ -577,7 +577,33 @@ function save(){
 }
 
 // ── Randomizer settings ───────────────────────────────────────────────────────
-function toggleRandSettings(){document.getElementById('randSettings').classList.toggle('open');}
+function toggleRandSettings(){
+  const showGear = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
+  if(!showGear) return;
+  const panel=document.getElementById('randSettings');
+  const btn=document.getElementById('randSettingsBtn');
+  if(panel.style.display==='none'||!panel.style.display){
+    const r=btn.getBoundingClientRect();
+    panel.style.display='block';
+    panel.style.top=(r.top)+'px';
+    panel.style.left=(r.right+10)+'px';
+    // Keep on screen if off right edge
+    const pw=panel.offsetWidth||280;
+    if(r.right+10+pw > window.innerWidth){
+      panel.style.left=Math.max(8,r.left-pw-10)+'px';
+    }
+  } else {
+    panel.style.display='none';
+  }
+}
+// Close popover when clicking outside
+document.addEventListener('click',e=>{
+  const panel=document.getElementById('randSettings');
+  const btn=document.getElementById('randSettingsBtn');
+  if(panel&&btn&&panel.style.display!=='none'&&!panel.contains(e.target)&&!btn.contains(e.target)){
+    panel.style.display='none';
+  }
+});
 function updateRandSettings(){
   rollSpeed = parseInt(document.getElementById('speedSlider').value);
   rollTicks = parseInt(document.getElementById('ticksSlider').value);
@@ -945,9 +971,9 @@ function render(){
   const sBtn=document.getElementById('startSessionBtn');
   if(sBtn) sBtn.style.display=(isOwner&&!activeRoomCode&&!joinedRoomCode)?'block':'none';
   const rsBtn=document.getElementById('randSettingsBtn');
-  const hideRs = joinedRoomCode && myRoomRole==='viewer';
-  if(rsBtn) rsBtn.style.display=hideRs?'none':'';
-  if(hideRs) document.getElementById('randSettings').classList.remove('open');
+  const showGear = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
+  if(rsBtn) rsBtn.style.display = showGear ? 'flex' : 'none';
+  if(!showGear){ document.getElementById('randSettings').style.display='none'; }
   updateMusicVisibility();
 }
 
@@ -1088,6 +1114,7 @@ async function openAccessModal(){
         <button class="copy-btn" onclick="copyText('${adminSessionLink}',this)">Copy</button>
       </div>
     ` : ''}
+    ${!pwSet ? `<div style="font-size:12px;color:var(--accent2);margin-top:8px;padding:10px;background:#ff5c5c11;border:1px solid #ff5c5c33;border-radius:8px">⚠️ Set a password before sharing the session. Without one, nobody can join as Admin.</div>` : ''}
     <hr class="modal-divider">
     <div class="modal-btns"><button onclick="closeModal()">Done</button></div>
   `;
@@ -1095,11 +1122,17 @@ async function openAccessModal(){
 async function saveAdminPassword(){
   const v=document.getElementById('newAdminPass').value.trim();
   if(!v){document.getElementById('modalErr').textContent='Password cannot be empty.';return;}
+  const btn=document.querySelector('.admin-primary');
+  if(btn){btn.disabled=true;btn.textContent='Saving…';}
   try{
     await api('POST','/owner/set-admin-password',{ownerToken:OWNER_TOKEN,adminPassword:v},false);
     closeModal();
+    showSuccessToast('✓ Password saved', 'Admin password has been updated');
     openAccessModal();
-  }catch(e){document.getElementById('modalErr').textContent=e.message;}
+  }catch(e){
+    document.getElementById('modalErr').textContent=e.message;
+    if(btn){btn.disabled=false;btn.textContent='Set Password';}
+  }
 }
 async function removeAdminPassword(){
   try{
@@ -1145,7 +1178,7 @@ async function submitJoin(){
     await api('POST','/sessions/join');
     if(currentUser.session_count!==undefined)currentUser.session_count++;
     document.getElementById('joinPrompt').style.display='none';
-    document.getElementById('joinSuccessMsg').textContent=`Welcome, ${currentUser.username}! You now have permanent admin access.`;
+    document.getElementById('joinSuccessMsg').textContent='Welcome, '+currentUser.username+'! You now have admin access for this session.';
     document.getElementById('joinSuccess').style.display='block';
   }catch(e){errEl.textContent=e.message;document.getElementById('joinPasswordInput').value='';document.getElementById('joinPasswordInput').focus();}
 }
@@ -1418,7 +1451,7 @@ function renderSessionBar(room){
         <div class="session-code">${activeRoomCode}</div>
         <div class="session-sub">${memberCount} connected</div>
         <div class="session-member-list">
-          ${members.map(m=>`<span class="session-member-chip ${m.role==='owner'?'owner-chip':m.role==='admin'?'admin-chip':''}">${m.username}</span>`).join('')}
+          ${members.filter(m=>m.role!=='owner').map(m=>`<span class="session-member-chip ${m.role==='admin'?'admin-chip':''}" style="display:inline-flex;align-items:center;gap:4px">${m.username}<button onclick="kickMember('${activeRoomCode}','${m.username.replace(/'/g,"\\'")}',this)" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1">✕</button></span>`).join('')}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -1444,7 +1477,10 @@ function renderSessionBar(room){
         <div class="session-code viewer-code">${joinedRoomCode}</div>
         <div class="session-sub">${memberCount} connected · You are ${myRoomRole}</div>
         <div class="session-member-list">
-          ${members.map(m=>`<span class="session-member-chip ${m.role==='owner'?'owner-chip':m.role==='admin'?'admin-chip':''}">${m.username}</span>`).join('')}
+          ${members.map(m=>{
+            const canKick = myRoomRole==='admin' && m.role==='viewer';
+            return `<span class="session-member-chip ${m.role==='owner'?'owner-chip':m.role==='admin'?'admin-chip':''}" style="display:inline-flex;align-items:center;gap:4px">${m.username}${canKick?`<button onclick="kickMember('${joinedRoomCode}','${m.username}',this)" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1">✕</button>`:''}</span>`;
+          }).join('')}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -1505,6 +1541,14 @@ function toggleSessionBar(){
   if(btn) btn.textContent = sessionBarCollapsed ? '▼ Expand' : '▲ Collapse';
 }
 
+async function kickMember(roomCode, username, btn){
+  if(!confirm('Kick '+username+' from the session?'))return;
+  try {
+    await api('POST','/rooms/'+roomCode+'/kick',{username});
+    if(btn) btn.closest('.session-member-chip').remove();
+  } catch(e){ alert('Could not kick: '+e.message); }
+}
+
 async function joinByCode(){
   const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
   const errEl = document.getElementById('joinCodeErr');
@@ -1517,6 +1561,14 @@ async function joinByCode(){
   } catch(e) {
     errEl.textContent = e.message==='This session has ended.' ? 'That session has ended.' : 'Session not found. Check the code.';
   }
+}
+
+function showSuccessToast(title, sub){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid #22c55e44;border-radius:12px;padding:10px 16px;font-size:13px;z-index:999;animation:fadeIn 0.2s ease;box-shadow:0 4px 20px #00000055;display:flex;align-items:center;gap:8px;max-width:240px';
+  t.innerHTML='<span style="font-size:18px">✅</span><div><div style="font-weight:600;color:#22c55e">'+title+'</div><div style="font-size:11px;color:var(--muted)">'+sub+'</div></div>';
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.transition='opacity 0.4s';t.style.opacity='0';setTimeout(()=>t.remove(),400);},3000);
 }
 
 function showJoinToast(username, role){
