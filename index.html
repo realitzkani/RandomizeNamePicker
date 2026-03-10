@@ -110,6 +110,7 @@
   .name-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
   .name-item { display:flex; align-items:center; gap:10px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 14px; animation:fadeIn 0.2s ease; }
   .name-item.duplicate { background:#ff5c5c18; border-color:#ff5c5c; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
   @keyframes fadeIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
   @keyframes modalIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
   .name-text { flex:1; font-size:15px; font-weight:500; }
@@ -315,7 +316,7 @@
 
 <script>
 // ── CONFIG — paste your Railway URL here after deploying ──────────────────────
-const API = 'https://randomizenamepickerbackend-production.up.railway.app';
+const API = 'https:randomizenamepickerbackend-production.up.railway.app';
 const OWNER_TOKEN = 'owner-secret'; // must match OWNER_TOKEN env var on Railway
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -426,18 +427,29 @@ document.addEventListener('click',e=>{
   if(!pill.contains(e.target)&&!drop.contains(e.target))drop.classList.remove('open');
 });
 
-function openChangeUsername(){
+async function openChangeUsername(){
   document.getElementById('accountDropdown').classList.remove('open');
+  // Fetch latest cooldown info
+  let cooldownDaysLeft = 0;
+  try { const me = await api('GET','/auth/me'); cooldownDaysLeft = me.cooldown_days_left || 0; } catch {}
+  const locked = cooldownDaysLeft > 0;
   document.getElementById('modalContent').innerHTML=`
     <h2>✏️ Change Username</h2>
-    <p>Pick a new username. Your role and history stay the same.</p>
+    <p>${locked
+      ? `You can change your username again in <strong style="color:var(--accent)">${cooldownDaysLeft} day${cooldownDaysLeft!==1?'s':''}</strong>. Usernames have a 7-day cooldown.`
+      : 'Pick a new username. Your role and history stay the same. You can only change it once every 7 days.'
+    }</p>
     <input type="text" id="newUsernameInput" placeholder="New username…" maxlength="30" value="${esc(currentUser.username)}"
+      ${locked ? 'disabled style="opacity:0.4"' : ''}
       onkeydown="if(event.key==='Enter')submitChangeUsername()">
     <div class="modal-error" id="modalErr"></div>
-    <div class="modal-btns"><button onclick="closeModal()">Cancel</button><button class="primary" onclick="submitChangeUsername()">Save</button></div>
+    <div class="modal-btns">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="primary" onclick="submitChangeUsername()" ${locked ? 'disabled' : ''}>Save</button>
+    </div>
   `;
   openModal();
-  setTimeout(()=>{const el=document.getElementById('newUsernameInput');if(el){el.focus();el.select();}},50);
+  if(!locked) setTimeout(()=>{const el=document.getElementById('newUsernameInput');if(el){el.focus();el.select();}},50);
 }
 async function submitChangeUsername(){
   const v=document.getElementById('newUsernameInput').value.trim();
@@ -544,7 +556,21 @@ function render(){
 }
 
 // ── Name actions ──────────────────────────────────────────────────────────────
-function addName(){if(!canEdit())return;const inp=document.getElementById('nameInput');const name=inp.value.trim();if(!name)return;names.push(name);save();inp.value='';inp.focus();render();}
+function addName(){
+  if(!canEdit())return;
+  const inp=document.getElementById('nameInput');
+  const name=inp.value.trim();
+  if(!name)return;
+  // Duplicate check (case-insensitive)
+  if(names.some(n=>n.toLowerCase()===name.toLowerCase())){
+    inp.style.borderColor='var(--accent2)';
+    inp.title='This name is already in the list!';
+    inp.style.animation='shake 0.3s ease';
+    setTimeout(()=>{inp.style.borderColor='';inp.title='';inp.style.animation='';},1500);
+    return;
+  }
+  names.push(name);save();inp.value='';inp.focus();render();
+}
 function removeName(i){if(!canEdit())return;names.splice(i,1);save();render();}
 function clearAll(){if(!canEdit())return;if(!confirm('Remove all names?'))return;names=[];save();document.getElementById('resultName').textContent='—';render();}
 function pickName(){
