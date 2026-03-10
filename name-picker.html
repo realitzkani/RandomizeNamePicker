@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Name Picker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0f;
+    --surface: #17171b;
+    --surface2: #1f1f25;
+    --border: #2a2a33;
+    --accent: #f5c842;
+    --accent-dim: #f5c84222;
+    --accent-shadow: #b89a00;
+    --accent2: #ff5c5c;
+    --admin: #a78bfa;
+    --admin-dim: #a78bfa22;
+    --text: #f0f0f0;
+    --title-text: #000000;
+    --muted: #666;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+
+  body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; }
+
+  .container { width: 100%; max-width: 600px; position: relative; z-index: 1; }
+
+  /* Header */
+  header { text-align: center; margin-bottom: 32px; }
+  h1 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(64px, 12vw, 96px); letter-spacing: 4px; line-height: 1; color: var(--accent); text-shadow: 4px 4px 0 #00000066; cursor: pointer; transition: opacity 0.2s; user-select: none; }
+  h1:hover { opacity: 0.85; }
+  .subtitle { color: var(--muted); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin-top: 6px; }
+  .title-edit-hint { font-size: 11px; color: var(--muted); letter-spacing: 1px; margin-top: 6px; opacity: 0; transition: opacity 0.2s; display: none; }
+  header:hover .title-edit-hint { opacity: 1; }
+
+  /* Title Editor */
+  .title-editor { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; display: none; }
+  .title-editor.open { display: block; animation: fadeIn 0.2s ease; }
+  .editor-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 8px; }
+  .editor-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
+  .field-group { flex: 1; min-width: 140px; }
+  .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.15s, border-color 0.15s; flex-shrink: 0; }
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.active { border-color: #fff; box-shadow: 0 0 0 1px #00000088; }
+  .color-custom-wrap { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; border: 2px solid var(--border); cursor: pointer; flex-shrink: 0; transition: transform 0.15s; display: flex; align-items: center; justify-content: center; }
+  .color-custom-wrap:hover { transform: scale(1.15); }
+  input[type="color"] { width: 40px; height: 40px; border: none; background: none; cursor: pointer; padding: 0; margin: -6px; }
+  .editor-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  .title-save-btn { background: var(--accent); color: var(--title-text); border: none; border-radius: 8px; padding: 9px 22px; font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 1px; cursor: pointer; transition: opacity 0.15s; }
+  .title-save-btn:hover { opacity: 0.85; }
+
+  /* Result */
+  .result-box { background: var(--surface); border: 2px solid var(--border); border-radius: 16px; padding: 36px 24px; text-align: center; margin-bottom: 24px; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .result-glow { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, var(--accent-dim) 0%, transparent 70%); pointer-events: none; transition: background 0.4s; }
+  .result-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; position: relative; }
+  .result-name { font-family: 'Bebas Neue', sans-serif; font-size: 56px; letter-spacing: 3px; color: var(--accent); line-height: 1; min-height: 60px; position: relative; transition: color 0.3s; }
+  .result-name.rolling { animation: roll 0.08s infinite alternate; color: var(--text); opacity: 0.7; }
+  @keyframes roll { from{transform:skewX(-2deg)} to{transform:skewX(2deg)} }
+  .pick-btn { margin-top: 20px; background: var(--accent); color: var(--title-text); border: none; border-radius: 10px; padding: 14px 40px; font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s, background 0.3s, color 0.3s; box-shadow: 0 4px 0 var(--accent-shadow); }
+  .pick-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 0 var(--accent-shadow); }
+  .pick-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--accent-shadow); }
+  .pick-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* Section */
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; color: var(--text); }
+  .count-badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 12px; font-size: 12px; color: var(--muted); }
+  .input-row { display: flex; gap: 10px; }
+  input[type="text"] { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; outline: none; transition: border-color 0.2s; }
+  input[type="text"]:focus { border-color: var(--accent); }
+  input[type="text"]::placeholder { color: var(--muted); }
+  .add-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; color: var(--accent); font-size: 22px; cursor: pointer; transition: background 0.2s; line-height: 1; }
+  .add-btn:hover { background: var(--border); }
+
+  /* Name list */
+  .name-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; padding-right: 4px; margin-top: 16px; }
+  .name-list::-webkit-scrollbar { width: 4px; }
+  .name-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .name-item { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; animation: fadeIn 0.2s ease; }
+  .name-item.duplicate { background: #ff5c5c18; border-color: #ff5c5c; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
+  .name-text { flex: 1; font-size: 15px; font-weight: 500; }
+  .dupe-tag { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent2); background: #ff5c5c22; border: 1px solid #ff5c5c55; border-radius: 4px; padding: 2px 7px; }
+  .remove-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 20px; line-height: 1; padding: 0 2px; transition: color 0.2s; }
+  .remove-btn:hover { color: var(--accent2); }
+  .empty-state { text-align: center; color: var(--muted); font-size: 13px; padding: 24px 0; }
+  .clear-all-btn { background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; text-decoration: underline; text-transform: uppercase; letter-spacing: 1px; margin-top: 10px; }
+  .clear-all-btn:hover { color: var(--accent2); }
+
+  /* Lock row */
+  .lock-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .lock-info { flex: 1; font-size: 13px; color: var(--muted); }
+  .lock-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 16px; color: var(--text); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+  .lock-btn:hover { background: var(--border); }
+
+  /* Role badges */
+  .mode-badge { display: inline-block; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; margin-bottom: 4px; font-weight: 600; }
+  .mode-badge.owner  { background: var(--accent-dim);  color: var(--accent);  border: 1px solid var(--accent); }
+  .mode-badge.admin  { background: var(--admin-dim);   color: var(--admin);   border: 1px solid var(--admin); }
+  .mode-badge.viewer { background: #ffffff11; color: #999; border: 1px solid #ffffff22; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: #00000099; backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 32px; width: 90%; max-width: 400px; animation: modalIn 0.2s ease; }
+  @keyframes modalIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+  .modal h2 { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px; margin-bottom: 6px; }
+  .modal p { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
+  .modal input[type="text"],
+  .modal input[type="password"] { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; outline: none; transition: border-color 0.2s; margin-bottom: 12px; }
+  .modal input:focus { border-color: var(--accent); }
+  .modal input::placeholder { color: var(--muted); }
+  .modal-error { font-size: 12px; color: var(--accent2); text-align: center; margin-bottom: 10px; min-height: 18px; }
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-btns button { flex: 1; padding: 12px; border-radius: 10px; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--text); transition: filter 0.15s; }
+  .modal-btns button.primary { background: var(--accent); color: var(--title-text); border-color: var(--accent); }
+  .modal-btns button.admin-primary { background: var(--admin); color: #0d0d0f; border-color: var(--admin); }
+  .modal-btns button:hover { filter: brightness(1.1); }
+
+  /* Info boxes inside modal */
+  .info-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; }
+  .info-box .info-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .info-box .info-value { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 3px; color: var(--accent); word-break: break-all; }
+  .info-box .info-value.admin-color { color: var(--admin); }
+
+  /* Link copy row */
+  .link-row { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .link-row input { flex: 1; font-size: 12px; color: var(--muted); padding: 9px 12px; cursor: text; }
+  .copy-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px; font-size: 13px; color: var(--text); cursor: pointer; white-space: nowrap; transition: background 0.2s; flex-shrink: 0; }
+  .copy-btn:hover { background: var(--border); }
+  .copy-btn.copied { color: #5cffa0; border-color: #5cffa044; }
+
+  /* Section divider inside modal */
+  .modal-divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
+  /* Admin join screen */
+  .join-screen { position: fixed; inset: 0; background: var(--bg); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .join-card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 40px 32px; width: 100%; max-width: 380px; text-align: center; animation: modalIn 0.3s ease; }
+  .join-card .join-icon { font-size: 48px; margin-bottom: 16px; }
+  .join-card h2 { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 3px; color: var(--admin); margin-bottom: 8px; }
+  .join-card p { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+  .join-card input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 16px; outline: none; transition: border-color 0.2s; margin-bottom: 12px; text-align: center; }
+  .join-card input:focus { border-color: var(--admin); }
+  .join-card .join-error { font-size: 12px; color: var(--accent2); min-height: 18px; margin-bottom: 10px; }
+  .join-card .join-btn { width: 100%; background: var(--admin); color: #0d0d0f; border: none; border-radius: 10px; padding: 14px; font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; cursor: pointer; transition: opacity 0.15s; margin-bottom: 10px; }
+  .join-card .join-btn:hover { opacity: 0.85; }
+  .join-card .join-skip { background: none; border: none; color: var(--muted); font-size: 13px; cursor: pointer; text-decoration: underline; }
+  .join-card .join-skip:hover { color: var(--text); }
+
+  /* Success state */
+  .join-success { display: none; }
+  .join-success .success-icon { font-size: 56px; margin-bottom: 12px; }
+  .join-success h2 { color: var(--admin); }
+  .join-success p { margin-bottom: 24px; }
+  .join-success .continue-btn { width: 100%; background: var(--admin); color: #0d0d0f; border: none; border-radius: 10px; padding: 14px; font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<!-- Admin Join Screen (shown when ?join is in URL) -->
+<div class="join-screen" id="joinScreen" style="display:none">
+  <div class="join-card">
+
+    <!-- Step 1: Password -->
+    <div id="joinPrompt">
+      <div class="join-icon">⚡</div>
+      <h2>ADMIN ACCESS</h2>
+      <p>You've been invited as an admin. Enter the admin password to unlock full edit access.</p>
+      <input type="password" id="joinPasswordInput" placeholder="Enter admin password"
+        onkeydown="if(event.key==='Enter')submitJoin()">
+      <div class="join-error" id="joinError"></div>
+      <button class="join-btn" onclick="submitJoin()">UNLOCK ADMIN</button>
+      <button class="join-skip" onclick="skipJoin()">Continue as viewer instead</button>
+    </div>
+
+    <!-- Step 2: Enter your name (required) -->
+    <div id="joinNameStep" style="display:none">
+      <div class="join-icon">👤</div>
+      <h2>YOUR NAME</h2>
+      <p>Almost there! Type your name so the owner knows who you are.</p>
+      <input type="text" id="joinNameInput" placeholder="Enter your name…" maxlength="40"
+        onkeydown="if(event.key==='Enter')submitJoinName()">
+      <div class="join-error" id="joinNameError"></div>
+      <button class="join-btn" onclick="submitJoinName()">ENTER</button>
+    </div>
+
+    <!-- Step 3: All done -->
+    <div class="join-success" id="joinSuccess">
+      <div class="success-icon">✅</div>
+      <h2>YOU'RE AN ADMIN</h2>
+      <p id="joinSuccessMsg">Admin access granted. You can now edit names, the title, colors, and pick winners.</p>
+      <button class="continue-btn" onclick="enterApp()">LET'S GO</button>
+    </div>
+
+  </div>
+</div>
+
+<div class="container" id="appContainer">
+
+  <header>
+    <h1 id="mainTitle" onclick="toggleTitleEditor()">PICK ONE</h1>
+    <p class="subtitle">Random Name Selector</p>
+    <p class="title-edit-hint" id="editHint">&#9998; Click title to customize</p>
+  </header>
+
+  <!-- Title Editor -->
+  <div class="title-editor" id="titleEditor">
+    <div class="editor-row">
+      <div class="field-group">
+        <span class="editor-label">Title Text</span>
+        <input type="text" id="titleInput" placeholder="e.g. Giveaway Time!" maxlength="24"
+          oninput="previewTitle()" onkeydown="if(event.key==='Enter')saveTitleSettings()">
+      </div>
+    </div>
+    <hr class="editor-divider">
+    <div class="editor-row">
+      <div class="field-group">
+        <span class="editor-label">Title &amp; Accent Color</span>
+        <div class="color-swatches" id="titleSwatches">
+          <div class="swatch active" style="background:#f5c842" data-color="#f5c842" onclick="selectTitleSwatch(this)"></div>
+          <div class="swatch" style="background:#ff5c5c" data-color="#ff5c5c" onclick="selectTitleSwatch(this)"></div>
+          <div class="swatch" style="background:#5caaff" data-color="#5caaff" onclick="selectTitleSwatch(this)"></div>
+          <div class="swatch" style="background:#5cffa0" data-color="#5cffa0" onclick="selectTitleSwatch(this)"></div>
+          <div class="swatch" style="background:#d45cff" data-color="#d45cff" onclick="selectTitleSwatch(this)"></div>
+          <div class="swatch" style="background:#ff9f40" data-color="#ff9f40" onclick="selectTitleSwatch(this)"></div>
+          <div class="swatch" style="background:#ffffff" data-color="#ffffff" onclick="selectTitleSwatch(this)"></div>
+          <label class="color-custom-wrap" title="Custom color">
+            <input type="color" id="titleColorCustom" value="#f5c842" oninput="customTitleColor(this.value)">
+          </label>
+        </div>
+      </div>
+      <div class="field-group">
+        <span class="editor-label">Button Text Color</span>
+        <div class="color-swatches" id="textSwatches">
+          <div class="swatch active" style="background:#000000;border:1px solid #444" data-color="#000000" onclick="selectTextSwatch(this)"></div>
+          <div class="swatch" style="background:#ffffff;border:1px solid #444" data-color="#ffffff" onclick="selectTextSwatch(this)"></div>
+          <div class="swatch" style="background:#1a1a1a" data-color="#1a1a1a" onclick="selectTextSwatch(this)"></div>
+          <div class="swatch" style="background:#0d0d0f" data-color="#0d0d0f" onclick="selectTextSwatch(this)"></div>
+          <div class="swatch" style="background:#1a0a00" data-color="#1a0a00" onclick="selectTextSwatch(this)"></div>
+          <div class="swatch" style="background:#0a001a" data-color="#0a001a" onclick="selectTextSwatch(this)"></div>
+          <div class="swatch" style="background:#001a0a" data-color="#001a0a" onclick="selectTextSwatch(this)"></div>
+          <label class="color-custom-wrap" title="Custom text color">
+            <input type="color" id="textColorCustom" value="#000000" oninput="customTextColor(this.value)">
+          </label>
+        </div>
+      </div>
+    </div>
+    <button class="title-save-btn" onclick="saveTitleSettings()">SAVE</button>
+  </div>
+
+  <!-- Result -->
+  <div class="result-box">
+    <div class="result-glow"></div>
+    <div class="result-label">Selected</div>
+    <div class="result-name" id="resultName">—</div>
+    <button class="pick-btn" id="pickBtn" onclick="pickName()" disabled>PICK A NAME</button>
+  </div>
+
+  <!-- Name List -->
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="mode-badge viewer" id="modeBadge">● Viewer</div>
+        <div class="section-title">NAME LIST</div>
+      </div>
+      <span class="count-badge" id="countBadge">0 names</span>
+    </div>
+
+    <div class="input-row" id="inputRow" style="display:none">
+      <input type="text" id="nameInput" placeholder="Enter a name…" maxlength="40"
+        onkeydown="if(event.key==='Enter')addName()">
+      <button class="add-btn" onclick="addName()">+</button>
+    </div>
+
+    <div class="name-list" id="nameList">
+      <div class="empty-state">No names yet. Add some above!</div>
+    </div>
+
+    <button class="clear-all-btn" id="clearAllBtn" style="display:none" onclick="clearAll()">Clear all</button>
+
+    <div class="lock-row">
+      <div style="font-size:18px">🔒</div>
+      <div class="lock-info" id="lockInfo">Viewing only.</div>
+      <button class="lock-btn" id="lockBtn" onclick="openAccessModal()">Manage Access</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal"><div id="modalContent"></div></div>
+</div>
+
+<script>
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function LS(k,fb)   { try{const v=localStorage.getItem(k);return v!==null?v:fb}catch{return fb} }
+function LSJ(k,fb)  { try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb}catch{return fb} }
+function LSSet(k,v) { try{localStorage.setItem(k,v)}catch{} }
+function SS(k,fb)   { try{const v=sessionStorage.getItem(k);return v!==null?v:fb}catch{return fb} }
+function SSSet(k,v) { try{sessionStorage.setItem(k,v)}catch{} }
+function esc(s)     { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+function darken(hex,pct=0.35) {
+  const n=parseInt(hex.replace('#',''),16);
+  const r=Math.max(0,Math.round(((n>>16)&0xff)*(1-pct)));
+  const g=Math.max(0,Math.round(((n>>8)&0xff)*(1-pct)));
+  const b=Math.max(0,Math.round((n&0xff)*(1-pct)));
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let names          = LSJ('pickerNames', []);
+let ownerPin       = LS('ownerPin', '');
+let adminPassword  = LS('adminPassword', '');   // owner sets this
+let isOwner        = !ownerPin;
+let isAdmin        = SS('isAdmin','') === '1';   // survives page reload within same tab
+let adminName      = SS('adminName', '');         // their entered name
+let rolling        = false;
+let titleText      = LS('pickerTitle', 'PICK ONE');
+let titleColor     = LS('pickerTitleColor', '#f5c842');
+let titleTextColor = LS('pickerTitleTextColor', '#000000');
+
+// Roles: owner > admin > viewer
+function canEdit()      { return isOwner || isAdmin; }
+function canEditTitle() { return isOwner || isAdmin; }
+function canManage()    { return isOwner; }
+
+function save() {
+  LSSet('pickerNames', JSON.stringify(names));
+  LSSet('ownerPin', ownerPin);
+  LSSet('adminPassword', adminPassword);
+  LSSet('pickerTitle', titleText);
+  LSSet('pickerTitleColor', titleColor);
+  LSSet('pickerTitleTextColor', titleTextColor);
+}
+
+// ── Accent ────────────────────────────────────────────────────────────────────
+function applyAccent(color, textColor) {
+  const r = document.documentElement;
+  r.style.setProperty('--accent', color);
+  r.style.setProperty('--accent-dim', color+'28');
+  r.style.setProperty('--accent-shadow', darken(color));
+  r.style.setProperty('--title-text', textColor);
+}
+
+function applyTitle() {
+  document.getElementById('mainTitle').textContent = titleText;
+  applyAccent(titleColor, titleTextColor);
+  if (isOwner) {
+    const b = document.getElementById('modeBadge');
+    b.style.color = titleColor;
+    b.style.borderColor = titleColor;
+    b.style.background = titleColor+'28';
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const list     = document.getElementById('nameList');
+  const countEl  = document.getElementById('countBadge');
+  const pickBtn  = document.getElementById('pickBtn');
+  const inputRow = document.getElementById('inputRow');
+  const clearBtn = document.getElementById('clearAllBtn');
+  const badge    = document.getElementById('modeBadge');
+  const lockInfo = document.getElementById('lockInfo');
+  const lockBtn  = document.getElementById('lockBtn');
+  const editHint = document.getElementById('editHint');
+
+  const freq = {};
+  names.forEach(n => freq[n.toLowerCase()]=(freq[n.toLowerCase()]||0)+1);
+
+  countEl.textContent    = `${names.length} name${names.length!==1?'s':''}`;
+  pickBtn.disabled       = names.length===0||rolling;
+  inputRow.style.display = canEdit() ? 'flex' : 'none';
+  clearBtn.style.display = canEdit() && names.length > 0 ? 'block' : 'none';
+  editHint.style.display = canEditTitle() ? 'block' : 'none';
+  lockBtn.style.display  = canManage() ? 'inline-block' : 'none';
+
+  // Badge
+  badge.style.cssText = '';
+  if (isOwner) {
+    badge.textContent = '● Owner'; badge.className = 'mode-badge owner';
+    badge.style.color = titleColor; badge.style.borderColor = titleColor; badge.style.background = titleColor+'28';
+  } else if (isAdmin) {
+    badge.textContent = adminName ? `⚡ ${adminName}` : '⚡ Admin'; badge.className = 'mode-badge admin';
+  } else {
+    badge.textContent = '● Viewer'; badge.className = 'mode-badge viewer';
+  }
+
+  lockInfo.textContent = isOwner
+    ? (adminPassword ? 'Admin password set — share the invite link.' : 'Set an admin password to invite trusted people.')
+    : isAdmin ? 'You have admin access.'
+    : 'You are viewing only.';
+
+  // Name list
+  if (names.length === 0) {
+    list.innerHTML = '<div class="empty-state">No names yet. Add some above!</div>';
+    return;
+  }
+  list.innerHTML = '';
+  names.forEach((name, i) => {
+    const isDupe = freq[name.toLowerCase()] > 1;
+    const div = document.createElement('div');
+    div.className = 'name-item' + (isDupe ? ' duplicate' : '');
+    div.innerHTML = `
+      <span class="name-text">${esc(name)}</span>
+      ${isDupe ? '<span class="dupe-tag">Duplicate</span>' : ''}
+      ${canEdit() ? `<button class="remove-btn" onclick="removeName(${i})">×</button>` : ''}
+    `;
+    list.appendChild(div);
+  });
+}
+
+// ── Name actions ──────────────────────────────────────────────────────────────
+function addName() {
+  if (!canEdit()) return;
+  const inp = document.getElementById('nameInput');
+  const name = inp.value.trim();
+  if (!name) return;
+  names.push(name); save(); inp.value=''; inp.focus(); render();
+}
+function removeName(i) { if (!canEdit()) return; names.splice(i,1); save(); render(); }
+function clearAll() {
+  if (!canEdit()) return;
+  if (!confirm('Remove all names?')) return;
+  names=[]; save();
+  document.getElementById('resultName').textContent='—';
+  render();
+}
+
+// ── Pick ──────────────────────────────────────────────────────────────────────
+function pickName() {
+  if (names.length===0||rolling) return;
+  rolling=true; render();
+  const el=document.getElementById('resultName');
+  el.classList.add('rolling');
+  let ticks=0, total=20+Math.floor(Math.random()*15);
+  const iv=setInterval(()=>{
+    el.textContent=names[Math.floor(Math.random()*names.length)];
+    if(++ticks>=total){
+      clearInterval(iv);
+      el.textContent=names[Math.floor(Math.random()*names.length)];
+      el.classList.remove('rolling');
+      rolling=false; render();
+    }
+  },80);
+}
+
+// ── Title editor ──────────────────────────────────────────────────────────────
+function toggleTitleEditor() {
+  if (!canEditTitle()) return;
+  const ed=document.getElementById('titleEditor');
+  const open=ed.classList.toggle('open');
+  if (open) {
+    document.getElementById('titleInput').value=titleText;
+    document.getElementById('titleColorCustom').value=titleColor;
+    document.getElementById('textColorCustom').value=titleTextColor;
+    markSwatch('titleSwatches',titleColor);
+    markSwatch('textSwatches',titleTextColor);
+  }
+}
+function previewTitle() {
+  const v=document.getElementById('titleInput').value.trim();
+  document.getElementById('mainTitle').textContent=v||titleText;
+}
+function selectTitleSwatch(el) { clearSwatches('titleSwatches');el.classList.add('active');document.getElementById('titleColorCustom').value=el.dataset.color;applyAccent(el.dataset.color,titleTextColor); }
+function customTitleColor(c)   { clearSwatches('titleSwatches');applyAccent(c,titleTextColor); }
+function selectTextSwatch(el)  { clearSwatches('textSwatches');el.classList.add('active');document.getElementById('textColorCustom').value=el.dataset.color;document.documentElement.style.setProperty('--title-text',el.dataset.color); }
+function customTextColor(c)    { clearSwatches('textSwatches');document.documentElement.style.setProperty('--title-text',c); }
+function clearSwatches(id)     { document.getElementById(id).querySelectorAll('.swatch').forEach(s=>s.classList.remove('active')); }
+function markSwatch(id,color)  { clearSwatches(id);const el=document.getElementById(id).querySelector(`[data-color="${color}"]`);if(el)el.classList.add('active'); }
+function saveTitleSettings() {
+  const v=document.getElementById('titleInput').value.trim();
+  if(v) titleText=v;
+  titleColor=document.getElementById('titleColorCustom').value;
+  titleTextColor=document.getElementById('textColorCustom').value;
+  save();applyTitle();render();
+  document.getElementById('titleEditor').classList.remove('open');
+}
+
+// ── Access modal (owner only) ─────────────────────────────────────────────────
+function openAccessModal() {
+  if (!isOwner) return;
+
+  // Build the invite link
+  const base = window.location.href.split('?')[0];
+  const inviteLink = base + '?join';
+
+  document.getElementById('modalContent').innerHTML = `
+    <h2>&#128272; Manage Access</h2>
+    <p>Set an admin password, then share the invite link. Anyone who opens it and enters the password gets the <strong style="color:var(--admin)">⚡ Admin</strong> role.</p>
+
+    <span class="editor-label" style="margin-bottom:6px;display:block">Admin Password</span>
+    ${adminPassword ? `<div class="info-box" style="margin-bottom:10px"><div class="info-label">Current password</div><div class="info-value admin-color">${esc(adminPassword)}</div></div>` : ''}
+    <input type="text" id="newAdminPass" placeholder="${adminPassword ? 'Update password…' : 'Set a password…'}" maxlength="32"
+      onkeydown="if(event.key==='Enter')saveAdminPassword()">
+    <div class="modal-error" id="modalErr"></div>
+    <div class="modal-btns" style="margin-bottom:${adminPassword?'18px':'0'}">
+      ${adminPassword?`<button onclick="removeAdminPassword()" style="color:var(--accent2)">Remove</button>`:''}
+      <button class="admin-primary" onclick="saveAdminPassword()">${adminPassword?'Update':'Set Password'}</button>
+    </div>
+
+    ${adminPassword ? `
+      <hr class="modal-divider">
+      <span class="editor-label" style="margin-bottom:6px;display:block">Invite Link</span>
+      <p style="margin-bottom:10px">Share this link. When they open it, they'll be prompted for the password.</p>
+      <div class="link-row">
+        <input type="text" id="inviteLinkInput" value="${inviteLink}" readonly style="font-size:12px;color:var(--muted);">
+        <button class="copy-btn" id="copyBtn" onclick="copyInviteLink('${inviteLink}')">Copy</button>
+      </div>
+    ` : ''}
+
+    <hr class="modal-divider">
+    <div class="modal-btns">
+      <button onclick="closeModal()">Done</button>
+    </div>
+  `;
+  openModal();
+}
+
+function saveAdminPassword() {
+  const v = document.getElementById('newAdminPass').value.trim();
+  if (!v) { document.getElementById('modalErr').textContent='Password cannot be empty.'; return; }
+  adminPassword = v; save(); closeModal(); openAccessModal();
+}
+function removeAdminPassword() {
+  adminPassword=''; save(); closeModal(); openAccessModal();
+}
+
+function copyInviteLink(link) {
+  navigator.clipboard.writeText(link).then(()=>{
+    const btn=document.getElementById('copyBtn');
+    btn.textContent='Copied!'; btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent='Copy'; btn.classList.remove('copied'); }, 2000);
+  }).catch(()=>{
+    document.getElementById('inviteLinkInput').select();
+    document.execCommand('copy');
+  });
+}
+
+// ── Modal helpers ─────────────────────────────────────────────────────────────
+function openModal()  { document.getElementById('modalOverlay').classList.add('open'); }
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+document.getElementById('modalOverlay').addEventListener('click', e=>{ if(e.target===e.currentTarget)closeModal(); });
+
+// ── Admin Join Flow ───────────────────────────────────────────────────────────
+function checkJoinFlow() {
+  if (!window.location.search.includes('join')) return;
+
+  // Already an admin this session — skip straight in
+  if (isAdmin) { enterApp(); return; }
+
+  // No admin password set — silently drop to viewer
+  if (!adminPassword) { skipJoin(); return; }
+
+  document.getElementById('joinScreen').style.display = 'flex';
+  document.getElementById('appContainer').style.display = 'none';
+  setTimeout(()=>document.getElementById('joinPasswordInput').focus(), 100);
+}
+
+function submitJoin() {
+  const v = document.getElementById('joinPasswordInput').value;
+  if (v === adminPassword) {
+    // Password correct — now ask for their name
+    document.getElementById('joinPrompt').style.display = 'none';
+    document.getElementById('joinNameStep').style.display = 'block';
+    setTimeout(()=>document.getElementById('joinNameInput').focus(), 50);
+  } else {
+    document.getElementById('joinError').textContent = 'Incorrect password. Try again.';
+    document.getElementById('joinPasswordInput').value = '';
+    document.getElementById('joinPasswordInput').focus();
+  }
+}
+
+function submitJoinName() {
+  const nameVal = document.getElementById('joinNameInput').value.trim();
+  if (!nameVal) {
+    document.getElementById('joinNameError').textContent = 'Please enter your name to continue.';
+    return;
+  }
+
+  // Grant admin, store their name for this session
+  isAdmin = true;
+  SSSet('isAdmin', '1');
+  SSSet('adminName', nameVal);
+
+  // Show success with their name
+  document.getElementById('joinNameStep').style.display = 'none';
+  document.getElementById('joinSuccessMsg').textContent =
+    `Welcome, ${nameVal}! You can now edit names, the title, colors, and pick winners.`;
+  document.getElementById('joinSuccess').style.display = 'block';
+}
+
+function enterApp() {
+  document.getElementById('joinScreen').style.display = 'none';
+  document.getElementById('appContainer').style.display = '';
+  history.replaceState(null,'',window.location.pathname);
+  applyTitle(); render();
+}
+
+function skipJoin() {
+  document.getElementById('joinScreen').style.display = 'none';
+  document.getElementById('appContainer').style.display = '';
+  history.replaceState(null,'',window.location.pathname);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+if (!ownerPin) isOwner = true;
+adminName = SS('adminName', '');
+applyTitle();
+render();
+checkJoinFlow();
+</script>
+</body>
+</html>
