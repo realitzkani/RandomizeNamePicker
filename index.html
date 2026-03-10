@@ -1384,18 +1384,25 @@ async function pollRoom(){
     const room = await api('GET','/rooms/'+code);
     // If viewer/admin: sync names from server
     if(!isRoomOwner){
+      // Detect if we've been kicked (no longer in member list)
+      if(room.members && currentUser){
+        const stillIn = room.members.some(m=>m.username===currentUser.username);
+        if(!stillIn){
+          stopRoomPoll();
+          joinedRoomCode=null; myRoomRole='viewer';
+          lastMemberSet=new Set();
+          renderSessionBar(); render();
+          showSuccessToast('Removed from session','You were removed by the host');
+          return;
+        }
+      }
       names = room.names;
-      // If last_pick changed, animate it
       if(room.last_pick && room.last_pick !== lastPick){
         lastPick = room.last_pick;
         document.getElementById('resultName').textContent = room.last_pick;
       }
       myRoomRole = room.my_room_role;
       render();
-    }
-    // Push names to server if owner
-    if(isRoomOwner){
-      // Already pushed on every addName/removeName
     }
     renderSessionBar(room);
     // Detect new joiners and show toast
@@ -1478,8 +1485,10 @@ function renderSessionBar(room){
         <div class="session-sub">${memberCount} connected · You are ${myRoomRole}</div>
         <div class="session-member-list">
           ${members.map(m=>{
-            const canKick = myRoomRole==='admin' && m.role==='viewer';
-            return `<span class="session-member-chip ${m.role==='owner'?'owner-chip':m.role==='admin'?'admin-chip':''}" style="display:inline-flex;align-items:center;gap:4px">${m.username}${canKick?`<button onclick="kickMember('${joinedRoomCode}','${m.username}',this)" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1">✕</button>`:''}</span>`;
+            const iMe = m.username === (currentUser&&currentUser.username);
+            const canKick = !iMe && m.role!=='owner' && (myRoomRole==='admin'||myRoomRole==='owner');
+            const code = joinedRoomCode;
+            return '<span class="session-member-chip '+(m.role==='owner'?'owner-chip':m.role==='admin'?'admin-chip':'')+'" style="display:inline-flex;align-items:center;gap:4px">'+m.username+(canKick?'<button onclick="kickMember(\''+code+'\',\''+m.username.replace(/'/g,"\\'")+'\')" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1">✕</button>':'')+'</span>';
           }).join('')}
         </div>
       </div>
@@ -1500,37 +1509,36 @@ function renderSessionBar(room){
 }
 
 async function leaveSession(){
-  // Get owner name before clearing state
+  const prevCode = joinedRoomCode;
+
+  // Remove from room on server FIRST so owner sees them gone immediately
+  stopRoomPoll();
+  try { await api('POST','/rooms/'+prevCode+'/leave',{}); } catch {}
+
+  // Get owner name for overlay
   let ownerName = 'the session';
   try {
-    const room = await api('GET','/rooms/'+joinedRoomCode);
+    const room = await api('GET','/rooms/'+prevCode);
     const owner = room.members ? room.members.find(m=>m.role==='owner') : null;
     if(owner) ownerName = owner.username + "'s Session";
   } catch {}
 
+  joinedRoomCode=null; myRoomRole='viewer';
+  lastMemberSet = new Set();
+  renderSessionBar();
+  render();
+
   // Show disconnecting overlay
   const overlay = document.createElement('div');
   overlay.style.cssText='position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;animation:fadeIn 0.2s ease';
-  overlay.innerHTML=`
-    <div style="font-size:32px">🔌</div>
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:var(--muted)">Disconnecting from</div>
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;color:var(--accent)">${ownerName}</div>
-  `;
+  overlay.innerHTML='<div style="font-size:32px">🔌</div>'
+    +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;letter-spacing:3px;color:var(--muted)">Disconnecting from</div>'
+    +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:36px;letter-spacing:3px;color:var(--accent)">'+ownerName+'</div>';
   document.body.appendChild(overlay);
-
-  await new Promise(r=>setTimeout(r,1800));
-
-  stopRoomPoll();
-  const prevCode = joinedRoomCode;
-  joinedRoomCode=null; myRoomRole='viewer';
-  lastMemberSet = new Set();
-  // Remove from room on server
-  try { await api('POST','/rooms/'+prevCode+'/leave',{}); } catch {}
+  await new Promise(r=>setTimeout(r,1600));
   overlay.style.transition='opacity 0.3s';
   overlay.style.opacity='0';
   setTimeout(()=>overlay.remove(),300);
-  renderSessionBar();
-  render();
 }
 
 function toggleSessionBar(){
@@ -1541,11 +1549,11 @@ function toggleSessionBar(){
   if(btn) btn.textContent = sessionBarCollapsed ? '▼ Expand' : '▲ Collapse';
 }
 
-async function kickMember(roomCode, username, btn){
+async function kickMember(roomCode, username){
   if(!confirm('Kick '+username+' from the session?'))return;
   try {
     await api('POST','/rooms/'+roomCode+'/kick',{username});
-    if(btn) btn.closest('.session-member-chip').remove();
+    pollRoom(); // refresh member list immediately
   } catch(e){ alert('Could not kick: '+e.message); }
 }
 
