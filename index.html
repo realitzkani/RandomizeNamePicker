@@ -241,6 +241,7 @@
 
   /* ── Session system ── */
   .session-bar-collapsed .session-member-list,.session-bar-collapsed .session-sub { display:none; }
+  .session-collapse-summary { display:none; font-size:12px; color:var(--muted); margin-top:4px; }
   .session-bar { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px 20px; margin-bottom:20px; display:flex; align-items:center; gap:14px; }
   .session-bar.active-session { border-color:var(--accent); background:var(--accent-dim); }
   .session-bar.viewer-session { border-color:var(--admin); background:var(--admin-dim); }
@@ -582,19 +583,26 @@ function toggleRandSettings(){
   if(!showGear) return;
   const panel=document.getElementById('randSettings');
   const btn=document.getElementById('randSettingsBtn');
-  if(panel.style.display==='none'||!panel.style.display){
-    const r=btn.getBoundingClientRect();
-    panel.style.display='block';
-    panel.style.top=(r.top)+'px';
-    panel.style.left=(r.right+10)+'px';
-    // Keep on screen if off right edge
-    const pw=panel.offsetWidth||280;
-    if(r.right+10+pw > window.innerWidth){
-      panel.style.left=Math.max(8,r.left-pw-10)+'px';
-    }
-  } else {
+  if(!btn) return;
+  if(panel.style.display==='block'){
     panel.style.display='none';
+    return;
   }
+  // Get button position AFTER ensuring it's visible
+  const r=btn.getBoundingClientRect();
+  if(!r.width){ panel.style.display='none'; return; }
+  panel.style.display='block';
+  // Position to the right of the button, vertically centered
+  const pw=280;
+  const ph=panel.offsetHeight||200;
+  let left=r.right+12;
+  let top=r.top+(r.height/2)-(ph/2);
+  // Clamp to viewport
+  if(left+pw>window.innerWidth-8) left=r.left-pw-12;
+  if(top<8) top=8;
+  if(top+ph>window.innerHeight-8) top=window.innerHeight-ph-8;
+  panel.style.left=left+'px';
+  panel.style.top=top+'px';
 }
 // Close popover when clicking outside
 document.addEventListener('click',e=>{
@@ -928,6 +936,7 @@ function logOut(){
 
 // ── Accent / Title ────────────────────────────────────────────────────────────
 function applyAccent(c,tc){const r=document.documentElement;r.style.setProperty('--accent',c);r.style.setProperty('--accent-dim',c+'28');r.style.setProperty('--accent-shadow',darken(c));r.style.setProperty('--title-text',tc);}
+function applyAccentAndSync(c,tc){applyAccent(c,tc);titleColor=c;titleTextColor=tc;pushRoomColors();}
 function applyTitle(){document.getElementById('mainTitle').textContent=titleText;applyAccent(titleColor,titleTextColor);}
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -1064,10 +1073,10 @@ function selectTextSwatch(el){clearSwatches('textSwatches');el.classList.add('ac
 function customTextColor(c){clearSwatches('textSwatches');document.documentElement.style.setProperty('--title-text',c);}
 function clearSwatches(id){document.getElementById(id).querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));}
 function markSwatch(id,color){clearSwatches(id);const el=document.getElementById(id).querySelector(`[data-color="${color}"]`);if(el)el.classList.add('active');}
-function saveTitleSettings(){const v=document.getElementById('titleInput').value.trim();if(v)titleText=v;titleColor=document.getElementById('titleColorCustom').value;titleTextColor=document.getElementById('textColorCustom').value;save();applyTitle();render();document.getElementById('titleEditor').classList.remove('open');}
+function saveTitleSettings(){const v=document.getElementById('titleInput').value.trim();if(v)titleText=v;titleColor=document.getElementById('titleColorCustom').value;titleTextColor=document.getElementById('textColorCustom').value;save();applyTitle();pushRoomColors();render();document.getElementById('titleEditor').classList.remove('open');}
 
 // ── Access modal ──────────────────────────────────────────────────────────────
-async function openAccessModal(){
+async function openAccessModal(showAdmins=false){
   if(!isOwner)return;
   // Show loading state
   document.getElementById('modalContent').innerHTML='<h2>🔒 Manage Access</h2><p style="color:var(--muted)">Loading…</p>';
@@ -1109,15 +1118,28 @@ async function openAccessModal(){
         <button class="copy-btn" onclick="copyText('${sessionLink}',this)">Copy</button>
       </div>
       <p style="margin-bottom:8px">Admin link (requires password):</p>
-      <div class="link-row">
+      <div class="link-row" style="margin-bottom:14px">
         <input type="text" value="${adminSessionLink}" readonly style="font-size:11px;color:var(--muted);">
         <button class="copy-btn" onclick="copyText('${adminSessionLink}',this)">Copy</button>
       </div>
+      <hr class="modal-divider" id="adminListAnchor">
+      <span class="editor-label" style="margin-bottom:10px;display:block">⚡ Admins in Session</span>
+      <div id="adminMemberList" style="margin-bottom:12px">
+        ${(currentRoomAdmins||[]).length===0
+          ? '<div style="font-size:12px;color:var(--muted);padding:8px 0">No admins have joined yet.</div>'
+          : (currentRoomAdmins||[]).map(a=>`
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:13px;font-weight:600">⚡ ${a}</span>
+              <button onclick="kickMember('${activeRoomCode}','${a}')" style="font-size:11px;color:var(--accent2);background:none;border:1px solid var(--accent2);border-radius:6px;padding:3px 10px;cursor:pointer">Remove</button>
+            </div>`).join('')
+        }
+      </div>
     ` : ''}
-    ${!pwSet ? `<div style="font-size:12px;color:var(--accent2);margin-top:8px;padding:10px;background:#ff5c5c11;border:1px solid #ff5c5c33;border-radius:8px">⚠️ Set a password before sharing the session. Without one, nobody can join as Admin.</div>` : ''}
+    ${!pwSet ? '<div style="font-size:12px;color:var(--accent2);margin-top:8px;padding:10px;background:#ff5c5c11;border:1px solid #ff5c5c33;border-radius:8px">⚠️ Set a password before sharing the session. Without one, nobody can join as Admin.</div>' : ''}
     <hr class="modal-divider">
     <div class="modal-btns"><button onclick="closeModal()">Done</button></div>
   `;
+  if(showAdmins){setTimeout(()=>{const a=document.getElementById('adminListAnchor');if(a)a.scrollIntoView({behavior:'smooth'});},100);}
 }
 async function saveAdminPassword(){
   const v=document.getElementById('newAdminPass').value.trim();
@@ -1128,7 +1150,7 @@ async function saveAdminPassword(){
     await api('POST','/owner/set-admin-password',{ownerToken:OWNER_TOKEN,adminPassword:v},false);
     closeModal();
     showSuccessToast('✓ Password saved', 'Admin password has been updated');
-    openAccessModal();
+    openAccessModal(true);
   }catch(e){
     document.getElementById('modalErr').textContent=e.message;
     if(btn){btn.disabled=false;btn.textContent='Set Password';}
@@ -1188,8 +1210,8 @@ function showApp(){document.getElementById('appContainer').style.display='';appl
 function updateMusicVisibility(){
   const mp=document.getElementById('musicPlayer');
   if(!mp)return;
-  // Hide music for viewers in a session; show for owner/admin always
-  mp.style.display = isViewerInSession() ? 'none' : '';
+  // Music only visible to the owner
+  mp.style.display = isOwner ? '' : 'none';
 }
 
 // ── Music player ──────────────────────────────────────────────────────────────
@@ -1403,6 +1425,8 @@ async function pollRoom(){
         document.getElementById('resultName').textContent = room.last_pick;
       }
       myRoomRole = room.my_room_role;
+      // Sync owner's accent colors
+      if(room.title_color) applyAccent(room.title_color, room.title_text_color||'#000');
       render();
     }
     renderSessionBar(room);
@@ -1430,7 +1454,12 @@ async function pollRoom(){
 async function pushRoomNames(){
   const code = getRoomCode();
   if(!code) return;
-  try { await api('PUT','/rooms/'+code,{ names }); } catch {}
+  try { await api('PUT','/rooms/'+code,{ names, title_color:titleColor, title_text_color:titleTextColor }); } catch {}
+}
+async function pushRoomColors(){
+  const code = getRoomCode();
+  if(!code) return;
+  try { await api('PUT','/rooms/'+code,{ title_color:titleColor, title_text_color:titleTextColor }); } catch {}
 }
 
 async function pushRoomPick(picked){
@@ -1439,7 +1468,9 @@ async function pushRoomPick(picked){
   try { await api('PUT','/rooms/'+code,{ last_pick:picked }); } catch {}
 }
 
+let currentRoomAdmins = [];
 function renderSessionBar(room){
+  if(room && room.members) currentRoomAdmins = room.members.filter(m=>m.role==='admin').map(m=>m.username);
   const bar = document.getElementById('sessionBar');
   const startBtn = document.getElementById('startSessionBtn');
 
@@ -1458,8 +1489,9 @@ function renderSessionBar(room){
         </div>
         <div class="session-code">${activeRoomCode}</div>
         <div class="session-sub">${memberCount} connected</div>
+        <div id="sessionCollapseSummary" class="session-collapse-summary">${(()=>{const o=members.filter(m=>m.role==='owner').length;const a=members.filter(m=>m.role==='admin').length;const v=members.filter(m=>m.role==='viewer').length;return (o?'👑 Owner':'')+(a?` · ⚡ Admins (${a})`:'')+(v?` · 👁 Viewers (${v})`:'');})()}</div>
         <div class="session-member-list">
-          ${members.filter(m=>m.role!=='owner').map(m=>`<span class="session-member-chip ${m.role==='admin'?'admin-chip':''}" style="display:inline-flex;align-items:center;gap:4px">${m.username}<button onclick="kickMember('${activeRoomCode}','${m.username.replace(/'/g,"\\'")}',this)" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1">✕</button></span>`).join('')}
+          ${members.filter(m=>m.role!=='owner').map(m=>{const em=m.role==='admin'?'⚡':'👁';return `<span class="session-member-chip ${m.role==='admin'?'admin-chip':''}" style="display:inline-flex;align-items:center;gap:4px">${em} ${m.username}<button onclick="kickMember('${activeRoomCode}','${m.username.replace(/'/g,"\\'")}',this)" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1">✕</button></span>`;}).join('')}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -1550,6 +1582,8 @@ function toggleSessionBar(){
   bar.classList.toggle('session-bar-collapsed', sessionBarCollapsed);
   const btn = document.getElementById('sessionCollapseBtn');
   if(btn) btn.textContent = sessionBarCollapsed ? '▼ Expand' : '▲ Collapse';
+  const summary = document.getElementById('sessionCollapseSummary');
+  if(summary) summary.style.display = sessionBarCollapsed ? 'block' : 'none';
 }
 
 async function kickMember(roomCode, username){
