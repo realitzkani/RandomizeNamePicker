@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Name Picker</title>
+<title>Random Name Picker</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -13,19 +13,20 @@
     --accent2:#ff5c5c; --admin:#a78bfa; --admin-dim:#a78bfa22;
     --text:#f0f0f0; --title-text:#000000; --muted:#666;
   }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:40px 20px; }
   body::before { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events:none; z-index:0; }
   .container { width:100%; max-width:600px; position:relative; z-index:1; }
 
-  /* Account pill */
+  /* ── Account pill ── */
   .account-pill { position:fixed; top:16px; right:16px; z-index:50; display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:40px; padding:6px 14px 6px 6px; cursor:pointer; transition:border-color 0.2s,background 0.2s; user-select:none; }
   .account-pill:hover { border-color:var(--accent); background:var(--surface2); }
-  .account-avatar { width:28px; height:28px; border-radius:50%; background:#444; color:#f0f0f0; font-family:'Bebas Neue',sans-serif; font-size:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .account-avatar { width:32px; height:32px; border-radius:50%; background:#444; color:#f0f0f0; font-family:'Bebas Neue',sans-serif; font-size:16px; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }
+  .account-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
   .account-avatar.admin-av { background:var(--admin); color:#0d0d0f; }
   .account-username { font-size:13px; font-weight:600; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .account-role-tag { font-size:10px; color:var(--muted); letter-spacing:1px; }
-
-  .account-dropdown { position:fixed; top:58px; right:16px; z-index:60; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:8px; min-width:190px; display:none; animation:fadeIn 0.15s ease; box-shadow:0 8px 32px #00000066; }
+  .account-dropdown { position:fixed; top:62px; right:16px; z-index:60; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:8px; min-width:200px; display:none; animation:fadeIn 0.15s ease; box-shadow:0 8px 32px #00000066; }
   .account-dropdown.open { display:block; }
   .dropdown-header { padding:8px 10px 12px; border-bottom:1px solid var(--border); margin-bottom:6px; }
   .dropdown-header .dh-name { font-weight:600; font-size:14px; }
@@ -35,7 +36,36 @@
   .dropdown-item.danger { color:var(--accent2); }
   .dropdown-item .di-icon { font-size:15px; width:18px; text-align:center; }
 
-  /* Fullscreen */
+  /* ── Music player (top-left) ── */
+  .music-player { position:fixed; top:16px; left:16px; z-index:50; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:10px 14px; min-width:220px; max-width:280px; }
+  .music-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .music-title { font-size:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--muted); flex:1; }
+  .music-toggle { background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; padding:0; transition:color 0.2s; }
+  .music-toggle:hover { color:var(--text); }
+  .music-track-name { font-size:12px; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:8px; max-width:100%; }
+  .music-controls { display:flex; align-items:center; gap:6px; }
+  .music-btn { background:none; border:none; color:var(--text); cursor:pointer; font-size:18px; padding:2px 4px; transition:color 0.2s; line-height:1; }
+  .music-btn:hover { color:var(--accent); }
+  .music-btn.play-btn { font-size:22px; }
+  .music-vol { flex:1; accent-color:var(--accent); cursor:pointer; }
+  .music-upload { display:none; }
+  .music-upload-btn { background:var(--surface2); border:1px dashed var(--border); border-radius:8px; padding:6px 10px; font-size:11px; color:var(--muted); cursor:pointer; text-align:center; transition:border-color 0.2s,color 0.2s; margin-top:6px; }
+  .music-upload-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .music-playlist { margin-top:6px; max-height:120px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+  .music-playlist::-webkit-scrollbar { width:3px; }
+  .music-playlist::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+  .playlist-item { display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:11px; color:var(--muted); transition:background 0.15s,color 0.15s; }
+  .playlist-item:hover { background:var(--surface2); color:var(--text); }
+  .playlist-item.active { color:var(--accent); background:var(--accent-dim); }
+  .playlist-item .pi-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .playlist-item .pi-remove { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:0; opacity:0; transition:opacity 0.15s; }
+  .playlist-item:hover .pi-remove { opacity:1; }
+  .music-collapsed .music-track-name,
+  .music-collapsed .music-controls,
+  .music-collapsed .music-upload-btn,
+  .music-collapsed .music-playlist { display:none; }
+
+  /* ── Fullscreen ── */
   .fullscreen { position:fixed; inset:0; background:var(--bg); z-index:200; display:flex; align-items:center; justify-content:center; padding:24px; }
   .screen-card { background:var(--surface); border:1px solid var(--border); border-radius:24px; padding:40px 32px; width:100%; max-width:380px; text-align:center; animation:modalIn 0.3s ease; }
   .screen-icon { font-size:48px; margin-bottom:16px; }
@@ -52,20 +82,20 @@
   .screen-btn.admin-btn  { background:var(--admin);  color:#0d0d0f; }
   .screen-link { background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer; text-decoration:underline; }
   .screen-link:hover { color:var(--text); }
-  .screen-tab-row { display:flex; gap:0; margin-bottom:24px; background:var(--surface2); border-radius:10px; padding:4px; }
+  .screen-tab-row { display:flex; margin-bottom:24px; background:var(--surface2); border-radius:10px; padding:4px; }
   .screen-tab { flex:1; padding:8px; border:none; border-radius:8px; background:none; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:14px; cursor:pointer; transition:background 0.15s,color 0.15s; }
   .screen-tab.active { background:var(--surface); color:var(--text); font-weight:600; }
   .success-icon { font-size:56px; margin-bottom:12px; }
 
-  /* Header */
+  /* ── Header ── */
   header { text-align:center; margin-bottom:32px; margin-top:24px; }
-  h1 { font-family:'Bebas Neue',sans-serif; font-size:clamp(56px,10vw,88px); letter-spacing:4px; line-height:1; color:var(--accent); text-shadow:4px 4px 0 #00000066; cursor:pointer; transition:opacity 0.2s; user-select:none; }
+  h1 { font-family:'Bebas Neue',sans-serif; font-size:clamp(48px,10vw,80px); letter-spacing:4px; line-height:1; color:var(--accent); text-shadow:4px 4px 0 #00000066; cursor:pointer; transition:opacity 0.2s; user-select:none; }
   h1:hover { opacity:0.85; }
   .subtitle { color:var(--muted); font-size:13px; letter-spacing:2px; text-transform:uppercase; margin-top:6px; }
   .title-edit-hint { font-size:11px; color:var(--muted); letter-spacing:1px; margin-top:6px; opacity:0; transition:opacity 0.2s; display:none; }
   header:hover .title-edit-hint { opacity:1; }
 
-  /* Title editor */
+  /* ── Title editor ── */
   .title-editor { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px 24px; margin-bottom:20px; display:none; }
   .title-editor.open { display:block; animation:fadeIn 0.2s ease; }
   .editor-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:8px; }
@@ -82,19 +112,38 @@
   .title-save-btn { background:var(--accent); color:var(--title-text); border:none; border-radius:8px; padding:9px 22px; font-family:'Bebas Neue',sans-serif; font-size:17px; letter-spacing:1px; cursor:pointer; transition:opacity 0.15s; }
   .title-save-btn:hover { opacity:0.85; }
 
-  /* Result */
+  /* ── Result ── */
   .result-box { background:var(--surface); border:2px solid var(--border); border-radius:16px; padding:36px 24px; text-align:center; margin-bottom:24px; min-height:160px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden; }
   .result-glow { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%,var(--accent-dim) 0%,transparent 70%); pointer-events:none; }
   .result-label { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:14px; position:relative; }
   .result-name { font-family:'Bebas Neue',sans-serif; font-size:56px; letter-spacing:3px; color:var(--accent); line-height:1; min-height:60px; position:relative; }
   .result-name.rolling { animation:roll 0.08s infinite alternate; color:var(--text); opacity:0.7; }
   @keyframes roll { from{transform:skewX(-2deg)} to{transform:skewX(2deg)} }
-  .pick-btn { margin-top:20px; background:var(--accent); color:var(--title-text); border:none; border-radius:10px; padding:14px 40px; font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:2px; cursor:pointer; transition:transform 0.1s,box-shadow 0.1s; box-shadow:0 4px 0 var(--accent-shadow); }
+  .result-btn-row { display:flex; gap:10px; margin-top:20px; align-items:center; }
+  .pick-btn { flex:1; background:var(--accent); color:var(--title-text); border:none; border-radius:10px; padding:14px 28px; font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:2px; cursor:pointer; transition:transform 0.1s,box-shadow 0.1s; box-shadow:0 4px 0 var(--accent-shadow); }
   .pick-btn:hover { transform:translateY(-2px); box-shadow:0 6px 0 var(--accent-shadow); }
   .pick-btn:active { transform:translateY(2px); box-shadow:0 2px 0 var(--accent-shadow); }
   .pick-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+  .settings-btn { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; font-size:18px; cursor:pointer; transition:background 0.2s; line-height:1; }
+  .settings-btn:hover { background:var(--border); }
 
-  /* Section */
+  /* ── Randomizer settings panel ── */
+  .rand-settings { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px 24px; margin-bottom:20px; display:none; }
+  .rand-settings.open { display:block; animation:fadeIn 0.2s ease; }
+  .rand-setting-row { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .rand-setting-row:last-child { margin-bottom:0; }
+  .rand-setting-label { flex:1; font-size:13px; color:var(--text); }
+  .rand-setting-label small { display:block; color:var(--muted); font-size:11px; margin-top:2px; }
+  .rand-slider { flex:1; accent-color:var(--accent); cursor:pointer; }
+  .rand-val { font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--accent); min-width:36px; text-align:right; }
+  .toggle-switch { position:relative; width:40px; height:22px; flex-shrink:0; }
+  .toggle-switch input { opacity:0; width:0; height:0; }
+  .toggle-track { position:absolute; inset:0; background:var(--border); border-radius:22px; cursor:pointer; transition:background 0.2s; }
+  .toggle-track::before { content:''; position:absolute; left:3px; top:3px; width:16px; height:16px; background:#fff; border-radius:50%; transition:transform 0.2s; }
+  .toggle-switch input:checked + .toggle-track { background:var(--accent); }
+  .toggle-switch input:checked + .toggle-track::before { transform:translateX(18px); }
+
+  /* ── Section ── */
   .section { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px; margin-bottom:20px; }
   .section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
   .section-title { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; color:var(--text); }
@@ -105,16 +154,17 @@
   input[type="text"]::placeholder { color:var(--muted); }
   .add-btn { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 18px; color:var(--accent); font-size:22px; cursor:pointer; transition:background 0.2s; line-height:1; }
   .add-btn:hover { background:var(--border); }
-  .name-list { display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; padding-right:4px; margin-top:16px; }
+  .name-list { display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto; padding-right:4px; margin-top:16px; }
   .name-list::-webkit-scrollbar { width:4px; }
   .name-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
   .name-item { display:flex; align-items:center; gap:10px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 14px; animation:fadeIn 0.2s ease; }
   .name-item.duplicate { background:#ff5c5c18; border-color:#ff5c5c; }
-  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
-  @keyframes fadeIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes modalIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
-  .name-text { flex:1; font-size:15px; font-weight:500; }
+  .name-item.editing { border-color:var(--accent); }
+  .name-text { flex:1; font-size:15px; font-weight:500; cursor:pointer; }
+  .name-edit-input { flex:1; background:transparent; border:none; outline:none; color:var(--text); font-family:'DM Sans',sans-serif; font-size:15px; font-weight:500; padding:0; }
   .dupe-tag { font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--accent2); background:#ff5c5c22; border:1px solid #ff5c5c55; border-radius:4px; padding:2px 7px; }
+  .edit-name-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px; line-height:1; padding:0 2px; transition:color 0.2s; }
+  .edit-name-btn:hover { color:var(--accent); }
   .remove-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:20px; line-height:1; padding:0 2px; transition:color 0.2s; }
   .remove-btn:hover { color:var(--accent2); }
   .empty-state { text-align:center; color:var(--muted); font-size:13px; padding:24px 0; }
@@ -129,10 +179,10 @@
   .mode-badge.admin  { background:var(--admin-dim);  color:var(--admin);  border:1px solid var(--admin); }
   .mode-badge.viewer { background:#ffffff11; color:#999; border:1px solid #ffffff22; }
 
-  /* Modal */
+  /* ── Modal ── */
   .modal-overlay { display:none; position:fixed; inset:0; background:#00000099; backdrop-filter:blur(4px); z-index:100; align-items:center; justify-content:center; }
   .modal-overlay.open { display:flex; }
-  .modal { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:32px; width:90%; max-width:400px; animation:modalIn 0.2s ease; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:32px; width:90%; max-width:420px; animation:modalIn 0.2s ease; max-height:90vh; overflow-y:auto; }
   .modal h2 { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:2px; margin-bottom:6px; }
   .modal p { font-size:13px; color:var(--muted); margin-bottom:16px; line-height:1.5; }
   .modal input[type="text"],.modal input[type="password"] { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 16px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:15px; outline:none; transition:border-color 0.2s; margin-bottom:12px; }
@@ -158,11 +208,43 @@
   .stat-box { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px; text-align:center; }
   .stat-num { font-family:'Bebas Neue',sans-serif; font-size:28px; color:var(--accent); letter-spacing:2px; }
   .stat-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+
+  /* ── Avatar upload ── */
+  .avatar-upload-area { display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:16px; }
+  .avatar-preview { width:80px; height:80px; border-radius:50%; background:var(--surface2); border:2px solid var(--border); overflow:hidden; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:36px; color:var(--muted); }
+  .avatar-preview img { width:100%; height:100%; object-fit:cover; }
+  .avatar-upload-btn { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:8px 16px; font-size:13px; cursor:pointer; color:var(--text); transition:background 0.2s; }
+  .avatar-upload-btn:hover { background:var(--border); }
+
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes modalIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
 </style>
 </head>
 <body>
 
-<!-- Account Pill -->
+<!-- ── Music Player ── -->
+<div class="music-player" id="musicPlayer">
+  <div class="music-header">
+    <span class="music-title">🎵 Music</span>
+    <button class="music-toggle" onclick="toggleMusicPlayer()" title="Collapse">▲</button>
+  </div>
+  <div class="music-track-name" id="musicTrackName">No track loaded</div>
+  <div class="music-controls">
+    <button class="music-btn" onclick="prevTrack()" title="Previous">⏮</button>
+    <button class="music-btn play-btn" id="playPauseBtn" onclick="togglePlay()">▶</button>
+    <button class="music-btn" onclick="nextTrack()" title="Next">⏭</button>
+    <input type="range" class="music-vol" id="volumeSlider" min="0" max="1" step="0.05" value="0.7" oninput="setVolume(this.value)">
+    <span style="font-size:11px;color:var(--muted)">🔊</span>
+  </div>
+  <label class="music-upload-btn">
+    + Add MP3 Files
+    <input type="file" class="music-upload" id="musicUpload" accept="audio/mp3,audio/*" multiple onchange="addTracks(this)">
+  </label>
+  <div class="music-playlist" id="musicPlaylist"></div>
+</div>
+
+<!-- ── Account Pill ── -->
 <div class="account-pill" id="accountPill" onclick="toggleDropdown()" style="display:none">
   <div class="account-avatar" id="accountAvatar">?</div>
   <div>
@@ -175,17 +257,18 @@
     <div class="dh-name" id="dropdownName">—</div>
     <div class="dh-sub" id="dropdownSub">Viewer · 0 sessions</div>
   </div>
+  <div class="dropdown-item" onclick="openChangePicture()"><span class="di-icon">🖼️</span> Change Profile Picture</div>
   <div class="dropdown-item" onclick="openChangeUsername()"><span class="di-icon">✏️</span> Change Username</div>
   <div class="dropdown-item" onclick="openChangePassword()"><span class="di-icon">🔑</span> Change Password</div>
   <div class="dropdown-item" onclick="openMyStats()"><span class="di-icon">📊</span> My Sessions</div>
   <div class="dropdown-item danger" onclick="logOut()"><span class="di-icon">🚪</span> Log Out</div>
 </div>
 
-<!-- Auth Screen -->
+<!-- ── Auth Screen ── -->
 <div class="fullscreen" id="authScreen">
   <div class="screen-card">
     <div class="screen-icon">🎲</div>
-    <h2 style="color:var(--accent)">NAME PICKER</h2>
+    <h2 style="color:var(--accent)">RANDOM NAME PICKER</h2>
     <p>Create an account or log in. Your role and history are saved across all devices.</p>
     <div class="screen-tab-row">
       <button class="screen-tab active" id="tabLogin" onclick="switchTab('login')">Log In</button>
@@ -210,7 +293,7 @@
   </div>
 </div>
 
-<!-- Admin Join Screen -->
+<!-- ── Admin Join Screen ── -->
 <div class="fullscreen" id="joinScreen" style="display:none">
   <div class="screen-card">
     <div id="joinPrompt">
@@ -232,10 +315,10 @@
   </div>
 </div>
 
-<!-- Main App -->
+<!-- ── Main App ── -->
 <div class="container" id="appContainer" style="display:none">
   <header>
-    <h1 id="mainTitle" onclick="toggleTitleEditor()">PICK ONE</h1>
+    <h1 id="mainTitle" onclick="toggleTitleEditor()">RANDOM NAME PICKER</h1>
     <p class="subtitle">Random Name Selector</p>
     <p class="title-edit-hint" id="editHint">✎ Click title to customize</p>
   </header>
@@ -280,11 +363,39 @@
     <button class="title-save-btn" onclick="saveTitleSettings()">SAVE</button>
   </div>
 
+  <!-- Randomizer settings panel -->
+  <div class="rand-settings" id="randSettings">
+    <span class="editor-label" style="margin-bottom:16px;display:block">⚙️ Randomizer Settings</span>
+    <div class="rand-setting-row">
+      <div class="rand-setting-label">Roll Speed<small>How fast the names cycle</small></div>
+      <input type="range" class="rand-slider" id="speedSlider" min="30" max="200" value="80" oninput="updateRandSettings()">
+      <span class="rand-val" id="speedVal">80ms</span>
+    </div>
+    <div class="rand-setting-row">
+      <div class="rand-setting-label">Roll Duration<small>How many ticks before stopping</small></div>
+      <input type="range" class="rand-slider" id="ticksSlider" min="5" max="60" value="25" oninput="updateRandSettings()">
+      <span class="rand-val" id="ticksVal">25</span>
+    </div>
+    <div class="rand-setting-row">
+      <div class="rand-setting-label">Allow Repeats<small>Same name can be picked again</small></div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="allowRepeats" checked onchange="updateRandSettings()">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+    <div class="rand-setting-row" id="excludeRow" style="display:none">
+      <div class="rand-setting-label">Recent picks excluded<small id="excludeNote">Last picked names won't repeat</small></div>
+    </div>
+  </div>
+
   <div class="result-box">
     <div class="result-glow"></div>
     <div class="result-label">Selected</div>
     <div class="result-name" id="resultName">—</div>
-    <button class="pick-btn" id="pickBtn" onclick="pickName()" disabled>PICK A NAME</button>
+    <div class="result-btn-row">
+      <button class="pick-btn" id="pickBtn" onclick="pickName()" disabled>PICK A NAME</button>
+      <button class="settings-btn" onclick="toggleRandSettings()" title="Randomizer settings">⚙️</button>
+    </div>
   </div>
 
   <div class="section">
@@ -314,10 +425,11 @@
   <div class="modal"><div id="modalContent"></div></div>
 </div>
 
+<audio id="audioPlayer" preload="auto"></audio>
+
 <script>
-// ── CONFIG — paste your Railway URL here after deploying ──────────────────────
 const API = 'https://randomizenamepickerbackend-production.up.railway.app';
-const OWNER_TOKEN = 'owner-secret'; // must match OWNER_TOKEN env var on Railway
+const OWNER_TOKEN = 'owner-secret';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const LS    = (k,fb)  => { try{const v=localStorage.getItem(k);return v!==null?v:fb}catch{return fb} };
@@ -344,16 +456,53 @@ let adminPassword  = LS('adminPassword','');
 let isOwner        = !ownerPin;
 let isAdmin        = false;
 let rolling        = false;
-let titleText      = LS('pickerTitle','PICK ONE');
+let titleText      = LS('pickerTitle','RANDOM NAME PICKER');
 let titleColor     = LS('pickerTitleColor','#f5c842');
 let titleTextColor = LS('pickerTitleTextColor','#000000');
 let currentUser    = null;
+let avatarDataUrl  = LS('avatarDataUrl','');
+let recentPicks    = [];
+
+// Randomizer settings
+let rollSpeed    = parseInt(LS('rollSpeed','80'));
+let rollTicks    = parseInt(LS('rollTicks','25'));
+let allowRepeats = LS('allowRepeats','1') === '1';
 
 const canEdit      = () => isOwner || isAdmin;
 const canEditTitle = () => isOwner || isAdmin;
 const canManage    = () => isOwner;
 
-function save(){LSSet('pickerNames',JSON.stringify(names));LSSet('ownerPin',ownerPin);LSSet('adminPassword',adminPassword);LSSet('pickerTitle',titleText);LSSet('pickerTitleColor',titleColor);LSSet('pickerTitleTextColor',titleTextColor);}
+function save(){
+  LSSet('pickerNames',JSON.stringify(names));
+  LSSet('ownerPin',ownerPin);
+  LSSet('adminPassword',adminPassword);
+  LSSet('pickerTitle',titleText);
+  LSSet('pickerTitleColor',titleColor);
+  LSSet('pickerTitleTextColor',titleTextColor);
+  LSSet('rollSpeed',rollSpeed);
+  LSSet('rollTicks',rollTicks);
+  LSSet('allowRepeats',allowRepeats?'1':'0');
+}
+
+// ── Randomizer settings ───────────────────────────────────────────────────────
+function toggleRandSettings(){document.getElementById('randSettings').classList.toggle('open');}
+function updateRandSettings(){
+  rollSpeed = parseInt(document.getElementById('speedSlider').value);
+  rollTicks = parseInt(document.getElementById('ticksSlider').value);
+  allowRepeats = document.getElementById('allowRepeats').checked;
+  document.getElementById('speedVal').textContent = rollSpeed+'ms';
+  document.getElementById('ticksVal').textContent = rollTicks;
+  document.getElementById('excludeRow').style.display = allowRepeats ? 'none' : 'flex';
+  save();
+}
+function initRandSettings(){
+  document.getElementById('speedSlider').value = rollSpeed;
+  document.getElementById('ticksSlider').value = rollTicks;
+  document.getElementById('allowRepeats').checked = allowRepeats;
+  document.getElementById('speedVal').textContent = rollSpeed+'ms';
+  document.getElementById('ticksVal').textContent = rollTicks;
+  document.getElementById('excludeRow').style.display = allowRepeats ? 'none' : 'flex';
+}
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 function switchTab(tab){
@@ -400,6 +549,8 @@ async function submitRegister(){
 function onLoggedIn(){
   document.getElementById('authScreen').style.display='none';
   isAdmin = currentUser.role==='admin';
+  // Load avatar per user
+  avatarDataUrl = LS('avatarDataUrl_'+currentUser.id,'');
   checkJoinFlow();
 }
 
@@ -408,16 +559,23 @@ function updatePill(){
   if(!currentUser)return;
   const role=isOwner?'Owner':isAdmin?'Admin':'Viewer';
   document.getElementById('accountPill').style.display='flex';
-  document.getElementById('accountAvatar').textContent=currentUser.username[0].toUpperCase();
+  const av=document.getElementById('accountAvatar');
+  if(avatarDataUrl){
+    av.innerHTML=`<img src="${avatarDataUrl}" alt="avatar">`;
+    av.style.background='none';
+  } else {
+    av.textContent=currentUser.username[0].toUpperCase();
+    av.innerHTML='';
+    av.textContent=currentUser.username[0].toUpperCase();
+    av.className='account-avatar';
+    if(isOwner){av.style.background=titleColor;av.style.color=titleTextColor;}
+    else if(isAdmin){av.className='account-avatar admin-av';av.style.background='';av.style.color='';}
+    else{av.style.background='#444';av.style.color='#f0f0f0';}
+  }
   document.getElementById('accountUsername').textContent=currentUser.username;
   document.getElementById('accountRoleTag').textContent=role;
   document.getElementById('dropdownName').textContent=currentUser.username;
   document.getElementById('dropdownSub').textContent=`${role} · ${currentUser.session_count??0} session${currentUser.session_count!==1?'s':''}`;
-  const av=document.getElementById('accountAvatar');
-  av.className='account-avatar';
-  if(isOwner){av.style.background=titleColor;av.style.color=titleTextColor;}
-  else if(isAdmin){av.classList.add('admin-av');av.style.background='';av.style.color='';}
-  else{av.style.background='#444';av.style.color='#f0f0f0';}
 }
 
 function toggleDropdown(){document.getElementById('accountDropdown').classList.toggle('open');}
@@ -427,9 +585,61 @@ document.addEventListener('click',e=>{
   if(!pill.contains(e.target)&&!drop.contains(e.target))drop.classList.remove('open');
 });
 
+// ── Change Profile Picture ────────────────────────────────────────────────────
+function openChangePicture(){
+  document.getElementById('accountDropdown').classList.remove('open');
+  const previewSrc = avatarDataUrl || '';
+  document.getElementById('modalContent').innerHTML=`
+    <h2>🖼️ Profile Picture</h2>
+    <p>Upload an image to use as your profile picture.</p>
+    <div class="avatar-upload-area">
+      <div class="avatar-preview" id="avatarPreview">
+        ${previewSrc ? `<img src="${previewSrc}" alt="avatar">` : (currentUser?currentUser.username[0].toUpperCase():'?')}
+      </div>
+      <label class="avatar-upload-btn">
+        Choose Image
+        <input type="file" accept="image/*" style="display:none" onchange="previewAvatar(this)">
+      </label>
+      ${avatarDataUrl ? `<button class="avatar-upload-btn" style="color:var(--accent2)" onclick="removeAvatar()">Remove Picture</button>` : ''}
+    </div>
+    <div class="modal-btns">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="primary" onclick="saveAvatar()">Save</button>
+    </div>
+  `;
+  openModal();
+}
+
+let pendingAvatar = null;
+function previewAvatar(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    pendingAvatar=e.target.result;
+    const prev=document.getElementById('avatarPreview');
+    prev.innerHTML=`<img src="${pendingAvatar}" alt="avatar">`;
+  };
+  reader.readAsDataURL(file);
+}
+function saveAvatar(){
+  if(pendingAvatar!==null) avatarDataUrl=pendingAvatar;
+  if(currentUser) LSSet('avatarDataUrl_'+currentUser.id, avatarDataUrl);
+  pendingAvatar=null;
+  updatePill();
+  closeModal();
+}
+function removeAvatar(){
+  avatarDataUrl='';
+  pendingAvatar=null;
+  if(currentUser) LSRm('avatarDataUrl_'+currentUser.id);
+  updatePill();
+  closeModal();
+}
+
+// ── Change Username ───────────────────────────────────────────────────────────
 async function openChangeUsername(){
   document.getElementById('accountDropdown').classList.remove('open');
-  // Fetch latest cooldown info
   let cooldownDaysLeft = 0;
   try { const me = await api('GET','/auth/me'); cooldownDaysLeft = me.cooldown_days_left || 0; } catch {}
   const locked = cooldownDaysLeft > 0;
@@ -445,7 +655,7 @@ async function openChangeUsername(){
     <div class="modal-error" id="modalErr"></div>
     <div class="modal-btns">
       <button onclick="closeModal()">Cancel</button>
-      <button class="primary" onclick="submitChangeUsername()" ${locked ? 'disabled' : ''}>Save</button>
+      <button class="primary" onclick="submitChangeUsername()" ${locked?'disabled':''}>Save</button>
     </div>
   `;
   openModal();
@@ -462,6 +672,7 @@ async function submitChangeUsername(){
   }catch(e){document.getElementById('modalErr').textContent=e.message;}
 }
 
+// ── Change Password ───────────────────────────────────────────────────────────
 function openChangePassword(){
   document.getElementById('accountDropdown').classList.remove('open');
   document.getElementById('modalContent').innerHTML=`
@@ -489,6 +700,7 @@ async function submitChangePassword(){
   }catch(e){document.getElementById('modalErr').textContent=e.message;}
 }
 
+// ── My Stats ─────────────────────────────────────────────────────────────────
 async function openMyStats(){
   document.getElementById('accountDropdown').classList.remove('open');
   document.getElementById('modalContent').innerHTML=`<h2>📊 My Sessions</h2><p style="color:var(--muted)">Loading…</p>`;
@@ -508,7 +720,7 @@ async function openMyStats(){
         sessions.slice(0,10).map(s=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span>Session #${s.id}</span><span style="color:var(--muted)">${new Date(s.joined_at).toLocaleDateString()}</span></div>`).join('')}
       <div class="modal-btns" style="margin-top:16px"><button onclick="closeModal()">Close</button></div>
     `;
-  }catch(e){document.getElementById('modalContent').innerHTML=`<h2>📊 My Sessions</h2><p>Could not load data.</p><div class="modal-btns"><button onclick="closeModal()">Close</button></div>`;}
+  }catch{document.getElementById('modalContent').innerHTML=`<h2>📊 My Sessions</h2><p>Could not load.</p><div class="modal-btns"><button onclick="closeModal()">Close</button></div>`;}
 }
 
 function logOut(){
@@ -549,7 +761,12 @@ function render(){
     const isDupe=freq[name.toLowerCase()]>1;
     const div=document.createElement('div');
     div.className='name-item'+(isDupe?' duplicate':'');
-    div.innerHTML=`<span class="name-text">${esc(name)}</span>${isDupe?'<span class="dupe-tag">Duplicate</span>':''}${canEdit()?`<button class="remove-btn" onclick="removeName(${i})">×</button>`:''}`;
+    div.innerHTML=`
+      <span class="name-text" ondblclick="${canEdit()?`startEditName(${i},this)`:''}" title="${canEdit()?'Double-click to edit':''}">${esc(name)}</span>
+      ${isDupe?'<span class="dupe-tag">Duplicate</span>':''}
+      ${canEdit()?`<button class="edit-name-btn" onclick="startEditName(${i},this.previousElementSibling)" title="Edit">✎</button>`:''}
+      ${canEdit()?`<button class="remove-btn" onclick="removeName(${i})">×</button>`:''}
+    `;
     list.appendChild(div);
   });
   updatePill();
@@ -561,25 +778,75 @@ function addName(){
   const inp=document.getElementById('nameInput');
   const name=inp.value.trim();
   if(!name)return;
-  // Duplicate check (case-insensitive)
   if(names.some(n=>n.toLowerCase()===name.toLowerCase())){
     inp.style.borderColor='var(--accent2)';
-    inp.title='This name is already in the list!';
     inp.style.animation='shake 0.3s ease';
-    setTimeout(()=>{inp.style.borderColor='';inp.title='';inp.style.animation='';},1500);
+    setTimeout(()=>{inp.style.borderColor='';inp.style.animation='';},1500);
     return;
   }
   names.push(name);save();inp.value='';inp.focus();render();
 }
+
 function removeName(i){if(!canEdit())return;names.splice(i,1);save();render();}
-function clearAll(){if(!canEdit())return;if(!confirm('Remove all names?'))return;names=[];save();document.getElementById('resultName').textContent='—';render();}
+function clearAll(){if(!canEdit())return;if(!confirm('Remove all names?'))return;names=[];recentPicks=[];save();document.getElementById('resultName').textContent='—';render();}
+
+function startEditName(i, el){
+  if(!canEdit())return;
+  const nameItem=el.closest('.name-item');
+  if(nameItem.classList.contains('editing'))return;
+  nameItem.classList.add('editing');
+  const currentName=names[i];
+  const input=document.createElement('input');
+  input.type='text';
+  input.className='name-edit-input';
+  input.value=currentName;
+  input.maxLength=40;
+  el.replaceWith(input);
+  input.focus();
+  input.select();
+  const finish=()=>{
+    const newName=input.value.trim();
+    if(newName && newName!==currentName){
+      if(names.some((n,idx)=>idx!==i&&n.toLowerCase()===newName.toLowerCase())){
+        input.style.borderBottom='1px solid var(--accent2)';
+        setTimeout(()=>{input.style.borderBottom='';},1200);
+        return;
+      }
+      names[i]=newName;
+      save();
+    }
+    render();
+  };
+  input.addEventListener('blur',finish);
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter')input.blur();
+    if(e.key==='Escape'){input.value=currentName;input.blur();}
+  });
+}
+
 function pickName(){
   if(names.length===0||rolling)return;
+  let pool = names;
+  if(!allowRepeats && names.length > 1){
+    pool = names.filter(n=>!recentPicks.includes(n));
+    if(pool.length===0){recentPicks=[];pool=names;}
+  }
   rolling=true;render();
   const el=document.getElementById('resultName');
   el.classList.add('rolling');
-  let ticks=0,total=20+Math.floor(Math.random()*15);
-  const iv=setInterval(()=>{el.textContent=names[Math.floor(Math.random()*names.length)];if(++ticks>=total){clearInterval(iv);el.textContent=names[Math.floor(Math.random()*names.length)];el.classList.remove('rolling');rolling=false;render();}},80);
+  let ticks=0;
+  const iv=setInterval(()=>{
+    el.textContent=pool[Math.floor(Math.random()*pool.length)];
+    if(++ticks>=rollTicks){
+      clearInterval(iv);
+      const picked=pool[Math.floor(Math.random()*pool.length)];
+      el.textContent=picked;
+      el.classList.remove('rolling');
+      rolling=false;
+      if(!allowRepeats){recentPicks.push(picked);if(recentPicks.length>Math.floor(names.length/2))recentPicks.shift();}
+      render();
+    }
+  },rollSpeed);
 }
 
 // ── Title editor ──────────────────────────────────────────────────────────────
@@ -596,7 +863,7 @@ function saveTitleSettings(){const v=document.getElementById('titleInput').value
 // ── Access modal ──────────────────────────────────────────────────────────────
 function openAccessModal(){
   if(!isOwner)return;
-  const inviteLink=window.location.href.split('?')[0]+'?adminrequest';
+  const inviteLink='https://realitzkani.github.io/RandomizeNamePicker/?adminrequest';
   document.getElementById('modalContent').innerHTML=`
     <h2>🔒 Manage Access</h2>
     <p>Set an admin password then share the invite link. Logged-in users who enter the password get <strong style="color:var(--admin)">⚡ Admin</strong> — permanently on their account.</p>
@@ -652,8 +919,7 @@ async function submitJoin(){
   try{
     const data=await api('POST','/auth/upgrade',{adminPassword:v});
     LSSet('authToken',data.token);
-    isAdmin=true;
-    currentUser.role='admin';
+    isAdmin=true; currentUser.role='admin';
     await api('POST','/sessions/join');
     if(currentUser.session_count!==undefined)currentUser.session_count++;
     document.getElementById('joinPrompt').style.display='none';
@@ -663,7 +929,74 @@ async function submitJoin(){
 }
 function enterApp(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
 function skipJoin(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
-function showApp(){document.getElementById('appContainer').style.display='';applyTitle();render();}
+function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();render();}
+
+// ── Music player ──────────────────────────────────────────────────────────────
+let playlist = [];
+let trackIndex = 0;
+let isPlaying = false;
+const audio = document.getElementById('audioPlayer');
+
+function addTracks(input){
+  Array.from(input.files).forEach(file=>{
+    const url=URL.createObjectURL(file);
+    playlist.push({name:file.name.replace(/\.[^.]+$/,''), url});
+  });
+  input.value='';
+  renderPlaylist();
+  if(playlist.length===1) loadTrack(0);
+}
+
+function loadTrack(i){
+  if(i<0||i>=playlist.length)return;
+  trackIndex=i;
+  audio.src=playlist[i].url;
+  document.getElementById('musicTrackName').textContent=playlist[i].name;
+  renderPlaylist();
+  if(isPlaying) audio.play();
+}
+
+function togglePlay(){
+  if(playlist.length===0)return;
+  if(isPlaying){audio.pause();isPlaying=false;}
+  else{audio.play();isPlaying=true;}
+  document.getElementById('playPauseBtn').textContent=isPlaying?'⏸':'▶';
+}
+
+function prevTrack(){if(playlist.length===0)return;loadTrack((trackIndex-1+playlist.length)%playlist.length);if(isPlaying)audio.play();}
+function nextTrack(){if(playlist.length===0)return;loadTrack((trackIndex+1)%playlist.length);if(isPlaying)audio.play();}
+function setVolume(v){audio.volume=parseFloat(v);}
+audio.addEventListener('ended',nextTrack);
+audio.volume=0.7;
+
+function removeTrack(i){
+  if(i===trackIndex&&isPlaying){audio.pause();isPlaying=false;document.getElementById('playPauseBtn').textContent='▶';}
+  URL.revokeObjectURL(playlist[i].url);
+  playlist.splice(i,1);
+  if(trackIndex>=playlist.length)trackIndex=0;
+  if(playlist.length>0)loadTrack(trackIndex);
+  else{audio.src='';document.getElementById('musicTrackName').textContent='No track loaded';}
+  renderPlaylist();
+}
+
+function renderPlaylist(){
+  const el=document.getElementById('musicPlaylist');
+  if(playlist.length===0){el.innerHTML='';return;}
+  el.innerHTML=playlist.map((t,i)=>`
+    <div class="playlist-item ${i===trackIndex?'active':''}" onclick="loadTrack(${i});if(isPlaying)audio.play()">
+      <span class="pi-name">${esc(t.name)}</span>
+      <button class="pi-remove" onclick="event.stopPropagation();removeTrack(${i})" title="Remove">×</button>
+    </div>
+  `).join('');
+}
+
+let musicCollapsed=false;
+function toggleMusicPlayer(){
+  musicCollapsed=!musicCollapsed;
+  const mp=document.getElementById('musicPlayer');
+  mp.classList.toggle('music-collapsed',musicCollapsed);
+  document.querySelector('.music-toggle').textContent=musicCollapsed?'▼':'▲';
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 if(!ownerPin) isOwner=true;
@@ -674,11 +1007,11 @@ if(!ownerPin) isOwner=true;
     try{
       currentUser=await api('GET','/auth/me');
       isAdmin=currentUser.role==='admin';
+      avatarDataUrl=LS('avatarDataUrl_'+currentUser.id,'');
       document.getElementById('authScreen').style.display='none';
       onLoggedIn();
     }catch{LSRm('authToken');}
   }
-  // If no valid token, authScreen stays visible
 })();
 </script>
 </body>
