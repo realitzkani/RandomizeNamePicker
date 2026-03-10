@@ -1418,7 +1418,7 @@ function renderSessionBar(room){
         <button class="session-btn end-btn" onclick="endSession()">End Session</button>
         <button class="session-btn secondary" onclick="toggleSessionBar()" id="sessionCollapseBtn" style="font-size:11px;padding:6px">▲ Collapse</button>
       </div>
-    \`;
+    `;
     if(startBtn) startBtn.style.display='none';
 
   } else if(joinedRoomCode){
@@ -1438,14 +1438,17 @@ function renderSessionBar(room){
           ${members.map(m=>`<span class="session-member-chip ${m.role==='owner'?'owner-chip':m.role==='admin'?'admin-chip':''}">${m.username}</span>`).join('')}
         </div>
       </div>
-      <button class="session-btn end-btn" onclick="leaveSession()">Leave</button>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="session-btn end-btn" onclick="leaveSession()">Leave Session</button>
+        <button class="session-btn secondary" onclick="toggleSessionBar()" id="sessionCollapseBtn" style="font-size:11px;padding:6px">▲ Collapse</button>
+      </div>
     `;
     if(startBtn) startBtn.style.display='none';
+    const jb2=document.getElementById('joinByCodeBox'); if(jb2) jb2.style.display='none';
 
   } else {
     bar.style.display='none';
     if(startBtn) startBtn.style.display = isOwner ? 'block' : 'none';
-    // Show join-by-code box for non-owners when not in any session
     const jb = document.getElementById('joinByCodeBox');
     if(jb) jb.style.display = (!isOwner && !joinedRoomCode) ? 'block' : 'none';
   }
