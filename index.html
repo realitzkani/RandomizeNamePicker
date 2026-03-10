@@ -852,11 +852,12 @@ async function openMyStats(){
     const [sessions,meData]=await Promise.all([api('GET','/sessions/mine'),api('GET','/auth/me')]);
     currentUser.session_count=meData.session_count;
     updatePill();
+    const displayRole = isOwner ? 'Owner' : (meData.role[0].toUpperCase()+meData.role.slice(1));
     document.getElementById('modalContent').innerHTML=`
       <h2>📊 My Sessions</h2>
       <div class="stats-row">
         <div class="stat-box"><div class="stat-num">${meData.session_count}</div><div class="stat-label">Total Sessions</div></div>
-        <div class="stat-box"><div class="stat-num">${meData.role[0].toUpperCase()+meData.role.slice(1)}</div><div class="stat-label">Role</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:${isOwner?'var(--accent)':'var(--accent)'}">${displayRole}</div><div class="stat-label">Role</div></div>
       </div>
       <p style="margin-bottom:12px;font-size:12px;color:var(--muted)">Member since ${new Date(meData.created_at).toLocaleDateString()}</p>
       ${sessions.length===0?'<p>No sessions recorded yet.</p>':
@@ -915,7 +916,7 @@ function render(){
   updatePill();
   // session bar visibility
   const sBtn=document.getElementById('startSessionBtn');
-  if(sBtn&&!activeRoomCode&&!joinedRoomCode) sBtn.style.display=isOwner?'block':'none';
+  if(sBtn) sBtn.style.display=(isOwner&&!activeRoomCode&&!joinedRoomCode)?'block':'none';
 }
 
 // ── Name actions ──────────────────────────────────────────────────────────────
@@ -1085,7 +1086,7 @@ async function submitJoin(){
 }
 function enterApp(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
 function skipJoin(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
-function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();render();}
+function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();render();renderSessionBar();}
 
 // ── Music player ──────────────────────────────────────────────────────────────
 let playlist = [];
