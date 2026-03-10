@@ -72,18 +72,20 @@
   .playlist-item .pi-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .playlist-item .pi-remove { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:0; opacity:0; transition:opacity 0.15s; }
   .playlist-item:hover .pi-remove { opacity:1; }
-  /* Collapsed state — show mini bar only */
-  .music-player.music-collapsed { width:auto; min-width:160px; }
+  /* Collapsed state — show track + progress + mini controls */
+  .music-player { transition:max-height 0.35s cubic-bezier(0.4,0,0.2,1), padding 0.3s; max-height:600px; overflow:hidden; }
+  .music-player.music-collapsed { max-height:110px; }
   .music-collapsed .music-section-tabs,
-  .music-collapsed .music-controls,
   .music-collapsed .music-upload-btn,
   .music-collapsed .music-link-row,
   .music-collapsed .music-embed,
   .music-collapsed .music-playlist { display:none; }
   .music-collapsed .music-track-name { margin-bottom:4px; }
-  .music-mini-bar { display:none; align-items:center; gap:6px; }
-  .music-collapsed .music-mini-bar { display:flex; }
-  .music-collapsed .music-progress-row { margin-bottom:0; }
+  /* Mini controls always visible — replace full controls row when collapsed */
+  .music-mini-controls { display:none; align-items:center; justify-content:center; gap:10px; margin-top:6px; }
+  .music-collapsed .music-mini-controls { display:flex; }
+  .music-collapsed .music-controls { display:none; }
+  .music-collapsed .music-progress-row { margin-bottom:4px; }
 
   /* ── Fullscreen ── */
   .fullscreen { position:fixed; inset:0; background:var(--bg); z-index:200; display:flex; align-items:center; justify-content:center; padding:24px; }
@@ -236,6 +238,28 @@
   .avatar-upload-btn { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:8px 16px; font-size:13px; cursor:pointer; color:var(--text); transition:background 0.2s; }
   .avatar-upload-btn:hover { background:var(--border); }
 
+
+  /* ── Session system ── */
+  .session-bar { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px 20px; margin-bottom:20px; display:flex; align-items:center; gap:14px; }
+  .session-bar.active-session { border-color:var(--accent); background:var(--accent-dim); }
+  .session-bar.viewer-session { border-color:var(--admin); background:var(--admin-dim); }
+  .session-info { flex:1; }
+  .session-code { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:4px; color:var(--accent); line-height:1; }
+  .session-code.viewer-code { color:var(--admin); }
+  .session-sub { font-size:11px; color:var(--muted); letter-spacing:1px; margin-top:2px; }
+  .session-btn { background:var(--accent); color:var(--title-text); border:none; border-radius:10px; padding:10px 18px; font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:1px; cursor:pointer; transition:opacity 0.15s; white-space:nowrap; }
+  .session-btn:hover { opacity:0.85; }
+  .session-btn.end-btn { background:var(--accent2); color:#fff; }
+  .session-btn.secondary { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .session-member-list { margin-top:10px; display:flex; flex-wrap:wrap; gap:6px; }
+  .session-member-chip { font-size:11px; background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:3px 10px; color:var(--muted); }
+  .session-member-chip.owner-chip { border-color:var(--accent); color:var(--accent); }
+  .session-member-chip.admin-chip { border-color:var(--admin); color:var(--admin); }
+  .live-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--accent); animation:pulse 1.5s infinite; margin-right:6px; }
+  .live-dot.admin-dot { background:var(--admin); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .start-session-btn { width:100%; background:var(--surface2); border:1px dashed var(--border); border-radius:12px; padding:14px; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; color:var(--muted); cursor:pointer; transition:border-color 0.2s,color 0.2s; margin-bottom:20px; }
+  .start-session-btn:hover { border-color:var(--accent); color:var(--accent); }
   @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
   @keyframes fadeIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
   @keyframes modalIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
@@ -254,8 +278,10 @@
     <input type="range" class="music-progress" id="progressBar" min="0" max="100" value="0" oninput="seekTo(this.value)">
     <span class="music-time" id="musicTime">0:00 / 0:00</span>
   </div>
-  <div class="music-mini-bar">
-    <button class="music-btn play-btn" id="playPauseBtnMini" onclick="togglePlay()" style="font-size:16px">▶</button>
+  <div class="music-mini-controls">
+    <button class="music-btn" onclick="prevTrack()" title="Previous">⏮</button>
+    <button class="music-btn play-btn" id="playPauseBtnMini" onclick="togglePlay()">⏸</button>
+    <button class="music-btn" onclick="nextTrack()" title="Next">⏭</button>
   </div>
   <div class="music-controls">
     <button class="music-btn" onclick="prevTrack()" title="Previous">⏮</button>
@@ -428,6 +454,9 @@
     </div>
   </div>
 
+  <!-- Session Bar -->
+  <div id="sessionBar" style="display:none"></div>
+
   <div class="result-box">
     <div class="result-glow"></div>
     <div class="result-label">Selected</div>
@@ -460,6 +489,11 @@
     </div>
   </div>
 </div>
+
+<!-- Start Session Button (owner only) -->
+<button class="start-session-btn" id="startSessionBtn" onclick="startSession()" style="display:none">
+  🔗 START A LIVE SESSION
+</button>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal"><div id="modalContent"></div></div>
@@ -508,7 +542,7 @@ let rollSpeed    = parseInt(LS('rollSpeed','80'));
 let rollTicks    = parseInt(LS('rollTicks','25'));
 let allowRepeats = LS('allowRepeats','1') === '1';
 
-const canEdit      = () => isOwner || isAdmin;
+const canEdit      = () => isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
 const canEditTitle = () => isOwner || isAdmin;
 const canManage    = () => isOwner;
 
@@ -593,7 +627,7 @@ function onLoggedIn(){
   avatarFilter   = LS('avatarFilter_'+currentUser.id,'none');
   avatarSize     = parseInt(LS('avatarSize_'+currentUser.id,'32'));
   avatarBorder   = LS('avatarBorder_'+currentUser.id,'none');
-  checkJoinFlow();
+  checkSessionFlow();
 }
 
 // ── Account pill ──────────────────────────────────────────────────────────────
@@ -879,6 +913,9 @@ function render(){
     list.appendChild(div);
   });
   updatePill();
+  // session bar visibility
+  const sBtn=document.getElementById('startSessionBtn');
+  if(sBtn&&!activeRoomCode&&!joinedRoomCode) sBtn.style.display=isOwner?'block':'none';
 }
 
 // ── Name actions ──────────────────────────────────────────────────────────────
@@ -893,10 +930,10 @@ function addName(){
     setTimeout(()=>{inp.style.borderColor='';inp.style.animation='';},1500);
     return;
   }
-  names.push(name);save();inp.value='';inp.focus();render();
+  names.push(name);save();pushRoomNames();inp.value='';inp.focus();render();
 }
 
-function removeName(i){if(!canEdit())return;names.splice(i,1);save();render();}
+function removeName(i){if(!canEdit())return;names.splice(i,1);save();pushRoomNames();render();}
 function clearAll(){if(!canEdit())return;if(!confirm('Remove all names?'))return;names=[];recentPicks=[];save();document.getElementById('resultName').textContent='—';render();}
 
 function startEditName(i, el){
@@ -953,6 +990,7 @@ function pickName(){
       el.classList.remove('rolling');
       rolling=false;
       if(!allowRepeats){recentPicks.push(picked);if(recentPicks.length>Math.floor(names.length/2))recentPicks.shift();}
+      pushRoomPick(picked);
       render();
     }
   },rollSpeed);
@@ -1025,6 +1063,15 @@ async function submitJoin(){
   const v=document.getElementById('joinPasswordInput').value;
   const errEl=document.getElementById('joinError');
   errEl.textContent='';
+  // Room admin join
+  if(window._pendingAdminRoom && window._pendingRoomCode){
+    try{
+      await joinRoom(window._pendingRoomCode, true, v);
+      window._pendingRoomCode=null; window._pendingAdminRoom=false;
+    }catch(e){errEl.textContent=e.message;document.getElementById('joinPasswordInput').value='';document.getElementById('joinPasswordInput').focus();}
+    return;
+  }
+  // Global admin upgrade
   try{
     const data=await api('POST','/auth/upgrade',{adminPassword:v});
     LSSet('authToken',data.token);
@@ -1157,6 +1204,228 @@ function toggleMusicPlayer(){
   mp.classList.toggle('music-collapsed',musicCollapsed);
   document.querySelector('.music-toggle').textContent=musicCollapsed?'▼':'▲';
 }
+
+// ── Session / Room system ─────────────────────────────────────────────────────
+let activeRoomCode = null;    // code of room owner created
+let joinedRoomCode = null;    // code of room viewer/admin joined
+let roomPollTimer  = null;
+let isRoomOwner    = false;
+let myRoomRole     = 'viewer';
+
+function getRoomCode() { return activeRoomCode || joinedRoomCode || null; }
+
+async function startSession(){
+  if(activeRoomCode){ alert('You already have an active session!'); return; }
+  try {
+    const data = await api('POST','/rooms',{ names });
+    activeRoomCode = data.code;
+    isRoomOwner = true;
+    myRoomRole = 'owner';
+    startRoomPoll();
+    renderSessionBar();
+    render();
+  } catch(e){ alert('Failed to start session: '+e.message); }
+}
+
+async function endSession(){
+  if(!activeRoomCode || !confirm('End this session? All viewers will be disconnected.')) return;
+  try {
+    await api('DELETE','/rooms/'+activeRoomCode);
+    activeRoomCode = null;
+    isRoomOwner = false;
+    myRoomRole = 'viewer';
+    stopRoomPoll();
+    renderSessionBar();
+    render();
+  } catch(e){ alert('Failed to end session: '+e.message); }
+}
+
+async function joinRoom(code, asAdmin=false, adminPw=''){
+  try {
+    let data;
+    if(asAdmin){
+      data = await api('POST','/rooms/'+code+'/admin-join',{ adminPassword:adminPw });
+    } else {
+      data = await api('POST','/rooms/'+code+'/join',{});
+    }
+    joinedRoomCode = code;
+    myRoomRole = data.role;
+    startRoomPoll();
+    document.getElementById('joinScreen').style.display='none';
+    history.replaceState(null,'',window.location.pathname);
+    showApp();
+  } catch(e){
+    if(asAdmin) throw e;
+    // Fall through to viewer join failed
+    alert('Could not join session: '+e.message);
+  }
+}
+
+function startRoomPoll(){
+  stopRoomPoll();
+  pollRoom();
+  roomPollTimer = setInterval(pollRoom, 2500);
+}
+function stopRoomPoll(){ if(roomPollTimer){ clearInterval(roomPollTimer); roomPollTimer=null; } }
+
+let lastPick = null;
+async function pollRoom(){
+  const code = getRoomCode();
+  if(!code) return;
+  try {
+    const room = await api('GET','/rooms/'+code);
+    // If viewer/admin: sync names from server
+    if(!isRoomOwner){
+      names = room.names;
+      // If last_pick changed, animate it
+      if(room.last_pick && room.last_pick !== lastPick){
+        lastPick = room.last_pick;
+        document.getElementById('resultName').textContent = room.last_pick;
+      }
+      myRoomRole = room.my_room_role;
+      render();
+    }
+    // Push names to server if owner
+    if(isRoomOwner){
+      // Already pushed on every addName/removeName
+    }
+    renderSessionBar(room);
+  } catch(e){
+    if(e.message && e.message.includes('ended')){
+      stopRoomPoll();
+      joinedRoomCode=null; activeRoomCode=null;
+      renderSessionBar();
+      alert('The session has ended.');
+      render();
+    }
+  }
+}
+
+async function pushRoomNames(){
+  const code = getRoomCode();
+  if(!code) return;
+  try { await api('PUT','/rooms/'+code,{ names }); } catch {}
+}
+
+async function pushRoomPick(picked){
+  const code = getRoomCode();
+  if(!code) return;
+  try { await api('PUT','/rooms/'+code,{ last_pick:picked }); } catch {}
+}
+
+function renderSessionBar(room){
+  const bar = document.getElementById('sessionBar');
+  const startBtn = document.getElementById('startSessionBtn');
+
+  if(isRoomOwner && activeRoomCode){
+    bar.style.display='flex';
+    bar.className='session-bar active-session';
+    const viewerLink = 'https://realitzkani.github.io/RandomizeNamePicker/?session='+activeRoomCode;
+    const adminLink  = 'https://realitzkani.github.io/RandomizeNamePicker/?session='+activeRoomCode+'&adminrequest';
+    const memberCount = room ? room.member_count : '…';
+    const members = room ? room.members : [];
+    bar.innerHTML=`
+      <div class="session-info">
+        <div style="display:flex;align-items:center;margin-bottom:4px">
+          <span class="live-dot"></span>
+          <span style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:600">Live Session</span>
+        </div>
+        <div class="session-code">${activeRoomCode}</div>
+        <div class="session-sub">${memberCount} connected</div>
+        <div class="session-member-list">
+          ${members.map(m=>`<span class="session-member-chip ${m.role==='owner'?'owner-chip':m.role==='admin'?'admin-chip':''}">${m.username}</span>`).join('')}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="session-btn" onclick="copySessionLink('${viewerLink}','view')">📋 Viewer Link</button>
+        <button class="session-btn secondary" onclick="copySessionLink('${adminLink}','admin')">⚡ Admin Link</button>
+        <button class="session-btn end-btn" onclick="endSession()">End Session</button>
+      </div>
+    `;
+    if(startBtn) startBtn.style.display='none';
+
+  } else if(joinedRoomCode){
+    bar.style.display='flex';
+    bar.className='session-bar viewer-session';
+    const members = room ? room.members : [];
+    const memberCount = room ? room.member_count : '…';
+    bar.innerHTML=`
+      <div class="session-info">
+        <div style="display:flex;align-items:center;margin-bottom:4px">
+          <span class="live-dot admin-dot"></span>
+          <span style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--admin);font-weight:600">Joined Session</span>
+        </div>
+        <div class="session-code viewer-code">${joinedRoomCode}</div>
+        <div class="session-sub">${memberCount} connected · You are ${myRoomRole}</div>
+        <div class="session-member-list">
+          ${members.map(m=>`<span class="session-member-chip ${m.role==='owner'?'owner-chip':m.role==='admin'?'admin-chip':''}">${m.username}</span>`).join('')}
+        </div>
+      </div>
+      <button class="session-btn end-btn" onclick="leaveSession()">Leave</button>
+    `;
+    if(startBtn) startBtn.style.display='none';
+
+  } else {
+    bar.style.display='none';
+    if(startBtn) startBtn.style.display = isOwner ? 'block' : 'none';
+  }
+}
+
+function leaveSession(){
+  stopRoomPoll();
+  joinedRoomCode=null; myRoomRole='viewer';
+  renderSessionBar();
+  render();
+}
+
+function copySessionLink(link, type){
+  navigator.clipboard.writeText(link).catch(()=>{});
+  const msg = type==='admin' ? '⚡ Admin link copied!' : '📋 Viewer link copied!';
+  // Quick toast
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;z-index:999;animation:fadeIn 0.2s ease';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2000);
+}
+
+// ── Session join flow (URL-based) ─────────────────────────────────────────────
+async function checkSessionFlow(){
+  const params = new URLSearchParams(window.location.search);
+  const sessionCode = params.get('session');
+  const wantsAdmin  = params.has('adminrequest');
+
+  if(!sessionCode){ checkJoinFlow(); return; }
+
+  // Verify room exists
+  try {
+    await api('GET','/rooms/'+sessionCode);
+  } catch(e){
+    alert('Session not found or has ended.');
+    history.replaceState(null,'',window.location.pathname);
+    showApp(); return;
+  }
+
+  if(wantsAdmin){
+    // Show admin join screen adapted for room
+    document.getElementById('joinScreen').style.display='flex';
+    document.getElementById('joinPrompt').style.display='block';
+    document.getElementById('joinSuccess').style.display='none';
+    document.getElementById('joinError').textContent='';
+    document.getElementById('joinPasswordInput').value='';
+    // Override submit to use room admin join
+    window._pendingRoomCode = sessionCode;
+    window._pendingAdminRoom = true;
+    setTimeout(()=>document.getElementById('joinPasswordInput').focus(),100);
+  } else {
+    // Viewer join — no password needed
+    await joinRoom(sessionCode, false);
+  }
+}
+
+// Patch submitJoin to handle room admin join
+const _origSubmitJoin = window.submitJoin;
+
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 if(!ownerPin) isOwner=true;
