@@ -136,6 +136,21 @@
 
   /* ── Result ── */
   .result-box { background:var(--surface); border:2px solid var(--border); border-radius:16px; padding:36px 24px; text-align:center; margin-bottom:24px; min-height:160px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+
+  /* ── Right Side Panel ── */
+  .side-panel { position:fixed; top:50%; right:20px; transform:translateY(-50%); z-index:40; display:flex; flex-direction:column; gap:12px; width:200px; }
+  .side-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; }
+  .side-card-title { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-weight:600; margin-bottom:10px; }
+  .room-code-display { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:6px; color:var(--accent); line-height:1; margin-bottom:8px; cursor:pointer; transition:opacity 0.2s; }
+  .room-code-display:hover { opacity:0.7; }
+  .room-code-copy-hint { font-size:10px; color:var(--muted); margin-bottom:10px; }
+  .side-code-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:4px; text-align:center; outline:none; transition:border-color 0.2s; text-transform:uppercase; margin-bottom:8px; }
+  .side-code-input:focus { border-color:var(--accent); }
+  .side-join-btn { width:100%; background:var(--accent); color:var(--title-text); border:none; border-radius:8px; padding:10px; font-family:'Bebas Neue',sans-serif; font-size:17px; letter-spacing:2px; cursor:pointer; transition:opacity 0.15s; }
+  .side-join-btn:hover { opacity:0.85; }
+  .side-gear-btn { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px; font-size:22px; cursor:pointer; transition:background 0.2s; line-height:1; }
+  .side-gear-btn:hover { background:var(--border); }
+  @media (max-width: 900px) { .side-panel { display:none; } }
   .result-glow { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%,var(--accent-dim) 0%,transparent 70%); pointer-events:none; }
   .result-label { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:14px; position:relative; }
   .result-name { font-family:'Bebas Neue',sans-serif; font-size:56px; letter-spacing:3px; color:var(--accent); line-height:1; min-height:60px; position:relative; }
@@ -435,13 +450,14 @@
   <!-- Session Bar -->
   <div id="sessionBar" style="display:none"></div>
 
-  <div class="result-box">
-    <div class="result-glow"></div>
-    <div class="result-label">Selected</div>
-    <div class="result-name" id="resultName">—</div>
-    <div class="result-btn-row">
-      <button class="pick-btn" id="pickBtn" onclick="pickName()" disabled>PICK A NAME</button>
-      <button class="settings-btn" id="randSettingsBtn" onclick="toggleRandSettings()" title="Randomizer settings" style="display:none">⚙️</button>
+  <div id="resultBoxWrap">
+    <div class="result-box">
+      <div class="result-glow"></div>
+      <div class="result-label" id="resultLabel">Selected</div>
+      <div class="result-name" id="resultName">—</div>
+      <div class="result-btn-row">
+        <button class="pick-btn" id="pickBtn" onclick="pickName()" disabled>PICK A NAME</button>
+      </div>
     </div>
   </div>
 
@@ -468,20 +484,7 @@
   </div>
 </div>
 
-<!-- Join Session by Code (non-owners when no session active) -->
-<div id="joinByCodeBox" style="display:none">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 24px;margin-bottom:20px;">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:12px;">🔗 JOIN A SESSION</div>
-    <div style="display:flex;gap:10px;">
-      <input type="text" id="joinCodeInput" placeholder="Enter session code (e.g. A3F9B2)…" maxlength="6"
-        style="text-transform:uppercase;letter-spacing:3px;font-family:'Bebas Neue',sans-serif;font-size:18px;"
-        oninput="this.value=this.value.toUpperCase()"
-        onkeydown="if(event.key==='Enter')joinByCode()">
-      <button class="add-btn" onclick="joinByCode()" style="padding:12px 20px;font-size:14px;font-weight:600;color:var(--accent)">JOIN</button>
-    </div>
-    <div id="joinCodeErr" style="font-size:12px;color:var(--accent2);margin-top:8px;min-height:16px;"></div>
-  </div>
-</div>
+<!-- join box moved to side panel -->
 
 <!-- Start Session Button (owner only) -->
 <button class="start-session-btn" id="startSessionBtn" onclick="startSession()" style="display:none">
@@ -493,6 +496,36 @@
 </div>
 
 <audio id="audioPlayer" preload="auto"></audio>
+<!-- ── Right Side Panel ── -->
+<div class="side-panel" id="sidePanel" style="display:none">
+
+  <!-- OWNER: Room Code display -->
+  <div class="side-card" id="sideRoomCode" style="display:none">
+    <div class="side-card-title">🔴 Room Code</div>
+    <div class="room-code-display" id="sideCode" onclick="copySideCode()" title="Click to copy">------</div>
+    <div class="room-code-copy-hint">Click to copy</div>
+    <div style="font-size:11px;color:var(--muted)" id="sideConnected">0 connected</div>
+  </div>
+
+  <!-- NON-OWNER not in session: Enter code -->
+  <div class="side-card" id="sideJoinCard" style="display:none">
+    <div class="side-card-title">🔗 Enter Session Code</div>
+    <input type="text" class="side-code-input" id="joinCodeInput" maxlength="6"
+      placeholder="A3F9B2"
+      oninput="this.value=this.value.toUpperCase()"
+      onkeydown="if(event.key==='Enter')joinByCode()">
+    <div id="joinCodeErr" style="font-size:11px;color:var(--accent2);min-height:14px;margin-bottom:6px;"></div>
+    <button class="side-join-btn" onclick="joinByCode()">JOIN</button>
+  </div>
+
+  <!-- OWNER/ADMIN: Randomizer settings gear -->
+  <div class="side-card" id="sideGearCard" style="display:none">
+    <div class="side-card-title">⚙️ Randomizer</div>
+    <button class="side-gear-btn" id="randSettingsBtn" onclick="toggleRandSettings()" title="Randomizer settings">⚙️ Settings</button>
+  </div>
+
+</div>
+
 
 <!-- Randomizer Settings Popover (floating) -->
 <div id="randSettings" style="display:none;position:fixed;z-index:150;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 24px;width:280px;box-shadow:0 8px 32px #00000066;">
@@ -595,10 +628,10 @@ function toggleRandSettings(){
   const pw = panel.offsetWidth  || 280;
   const ph = panel.offsetHeight || 220;
   panel.style.visibility = '';
-  // Place to the right; flip left if no room
-  let left = r.right + 12;
+  // Place to the LEFT of the gear card (panel is on right side)
+  let left = r.left - pw - 12;
   let top  = r.top + (r.height / 2) - (ph / 2);
-  if(left + pw > window.innerWidth - 8)  left = r.left - pw - 12;
+  if(left < 8) left = r.right + 12; // flip right if not enough room
   if(top < 8)                            top  = 8;
   if(top + ph > window.innerHeight - 8)  top  = window.innerHeight - ph - 8;
   panel.style.left = left + 'px';
@@ -978,14 +1011,48 @@ function render(){
     list.appendChild(div);
   });
   updatePill();
+  updateSidePanel();
+  updateMusicVisibility();
   // session bar visibility
   const sBtn=document.getElementById('startSessionBtn');
   if(sBtn) sBtn.style.display=(isOwner&&!activeRoomCode&&!joinedRoomCode)?'block':'none';
-  const rsBtn=document.getElementById('randSettingsBtn');
-  const showGear = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner' || !joinedRoomCode;
-  if(rsBtn) rsBtn.style.display = showGear ? 'flex' : 'none';
-  if(!showGear){ document.getElementById('randSettings').style.display='none'; }
-  updateMusicVisibility();
+}
+
+function updateSidePanel(){
+  const sp         = document.getElementById('sidePanel');
+  const rcCard     = document.getElementById('sideRoomCode');
+  const joinCard   = document.getElementById('sideJoinCard');
+  const gearCard   = document.getElementById('sideGearCard');
+  const resultWrap = document.getElementById('resultBoxWrap');
+  if(!sp) return;
+
+  const isViewer   = joinedRoomCode && myRoomRole==='viewer';
+  const canSeeGear = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
+  const inSession  = !!(activeRoomCode || joinedRoomCode);
+
+  // Hide pick box for viewers in a session
+  if(resultWrap) resultWrap.style.display = isViewer ? 'none' : '';
+
+  // Side panel visibility
+  const showAnyCard = isOwner || !inSession || canSeeGear;
+  sp.style.display = showAnyCard ? 'flex' : 'none';
+
+  // Room code card — only for owner while session active
+  if(rcCard){
+    rcCard.style.display = (isOwner && activeRoomCode) ? 'block' : 'none';
+    if(activeRoomCode){
+      document.getElementById('sideCode').textContent = activeRoomCode;
+    }
+  }
+
+  // Join card — non-owners not in any session
+  if(joinCard) joinCard.style.display = (!isOwner && !inSession) ? 'block' : 'none';
+
+  // Gear card — owner/admin only
+  if(gearCard){
+    gearCard.style.display = canSeeGear ? 'block' : 'none';
+    if(!canSeeGear) document.getElementById('randSettings').style.display='none';
+  }
 }
 
 // ── Name actions ──────────────────────────────────────────────────────────────
@@ -1537,6 +1604,9 @@ function renderSessionBar(room){
       </div>
     `;
     if(startBtn) startBtn.style.display='none';
+    // update side panel connected count
+    const sc=document.getElementById('sideConnected');
+    if(sc && room) sc.textContent=room.member_count+' connected';
 
   } else if(joinedRoomCode){
     bar.style.display='flex';
@@ -1566,14 +1636,13 @@ function renderSessionBar(room){
       </div>
     `;
     if(startBtn) startBtn.style.display='none';
-    const jb2=document.getElementById('joinByCodeBox'); if(jb2) jb2.style.display='none';
+
 
   } else {
     bar.style.display='none';
     if(startBtn) startBtn.style.display = isOwner ? 'block' : 'none';
-    const jb = document.getElementById('joinByCodeBox');
-    if(jb) jb.style.display = (!isOwner && !joinedRoomCode) ? 'block' : 'none';
   }
+  updateSidePanel();
 }
 
 async function leaveSession(){
@@ -1660,6 +1729,14 @@ function showJoinToast(username, role){
   setTimeout(()=>{t.style.transition='opacity 0.4s';t.style.opacity='0';setTimeout(()=>t.remove(),400);},3000);
 }
 
+function copySideCode(){
+  const code=activeRoomCode;
+  if(!code)return;
+  navigator.clipboard.writeText(code).catch(()=>{});
+  const el=document.getElementById('sideCode');
+  const orig=el.textContent; el.textContent='COPIED!';
+  setTimeout(()=>el.textContent=orig,1500);
+}
 function copySessionLink(link, type){
   navigator.clipboard.writeText(link).catch(()=>{});
   const msg = type==='admin' ? '⚡ Admin link copied!' : '📋 Viewer link copied!';
