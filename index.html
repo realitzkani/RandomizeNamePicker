@@ -490,6 +490,21 @@
   </div>
 </div>
 
+<!-- Join Session by Code (non-owners when no session active) -->
+<div id="joinByCodeBox" style="display:none">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 24px;margin-bottom:20px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;margin-bottom:12px;">🔗 JOIN A SESSION</div>
+    <div style="display:flex;gap:10px;">
+      <input type="text" id="joinCodeInput" placeholder="Enter session code (e.g. A3F9B2)…" maxlength="6"
+        style="text-transform:uppercase;letter-spacing:3px;font-family:'Bebas Neue',sans-serif;font-size:18px;"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter')joinByCode()">
+      <button class="add-btn" onclick="joinByCode()" style="padding:12px 20px;font-size:14px;font-weight:600;color:var(--accent)">JOIN</button>
+    </div>
+    <div id="joinCodeErr" style="font-size:12px;color:var(--accent2);margin-top:8px;min-height:16px;"></div>
+  </div>
+</div>
+
 <!-- Start Session Button (owner only) -->
 <button class="start-session-btn" id="startSessionBtn" onclick="startSession()" style="display:none">
   🔗 START A LIVE SESSION
@@ -542,7 +557,8 @@ let rollSpeed    = parseInt(LS('rollSpeed','80'));
 let rollTicks    = parseInt(LS('rollTicks','25'));
 let allowRepeats = LS('allowRepeats','1') === '1';
 
-const canEdit      = () => isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
+const isViewerInSession = () => joinedRoomCode && myRoomRole==='viewer';
+const canEdit      = () => !isViewerInSession() && (isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner');
 const canEditTitle = () => isOwner || isAdmin;
 const canManage    = () => isOwner;
 
@@ -883,7 +899,7 @@ function render(){
   const freq={};
   names.forEach(n=>freq[n.toLowerCase()]=(freq[n.toLowerCase()]||0)+1);
   document.getElementById('countBadge').textContent=`${names.length} name${names.length!==1?'s':''}`;
-  document.getElementById('pickBtn').disabled=names.length===0||rolling;
+  document.getElementById('pickBtn').disabled=names.length===0||rolling||isViewerInSession();
   document.getElementById('inputRow').style.display=canEdit()?'flex':'none';
   document.getElementById('clearAllBtn').style.display=canEdit()&&names.length>0?'block':'none';
   document.getElementById('editHint').style.display=canEditTitle()?'block':'none';
@@ -917,6 +933,7 @@ function render(){
   // session bar visibility
   const sBtn=document.getElementById('startSessionBtn');
   if(sBtn) sBtn.style.display=(isOwner&&!activeRoomCode&&!joinedRoomCode)?'block':'none';
+  updateMusicVisibility();
 }
 
 // ── Name actions ──────────────────────────────────────────────────────────────
@@ -1009,44 +1026,77 @@ function markSwatch(id,color){clearSwatches(id);const el=document.getElementById
 function saveTitleSettings(){const v=document.getElementById('titleInput').value.trim();if(v)titleText=v;titleColor=document.getElementById('titleColorCustom').value;titleTextColor=document.getElementById('textColorCustom').value;save();applyTitle();render();document.getElementById('titleEditor').classList.remove('open');}
 
 // ── Access modal ──────────────────────────────────────────────────────────────
-function openAccessModal(){
+async function openAccessModal(){
   if(!isOwner)return;
-  const inviteLink='https://realitzkani.github.io/RandomizeNamePicker/?adminrequest';
+  // Show loading state
+  document.getElementById('modalContent').innerHTML='<h2>🔒 Manage Access</h2><p style="color:var(--muted)">Loading…</p>';
+  openModal();
+  // Check if admin password is currently set by probing the server
+  let pwSet = false;
+  try {
+    // Try a dummy upgrade — if error is 'Incorrect' pw is set; if 'No admin password' it's not
+    await api('POST','/auth/upgrade',{adminPassword:'__probe__'});
+  } catch(e) {
+    pwSet = e.message !== 'No admin password has been set.';
+  }
+  adminPassword = pwSet ? '••••••••' : '';
+  const sessionLink = activeRoomCode
+    ? 'https://realitzkani.github.io/RandomizeNamePicker/?session='+activeRoomCode
+    : null;
+  const adminSessionLink = activeRoomCode
+    ? 'https://realitzkani.github.io/RandomizeNamePicker/?session='+activeRoomCode+'&adminrequest'
+    : null;
+  const globalAdminLink = 'https://realitzkani.github.io/RandomizeNamePicker/?adminrequest';
   document.getElementById('modalContent').innerHTML=`
     <h2>🔒 Manage Access</h2>
-    <p>Set an admin password then share the invite link. Logged-in users who enter the password get <strong style="color:var(--admin)">⚡ Admin</strong> — permanently on their account.</p>
-    <span class="editor-label" style="margin-bottom:6px;display:block">Admin Password</span>
-    ${adminPassword?`<div class="info-box" style="margin-bottom:10px"><div class="info-label">Currently set</div><div class="info-value admin-color">••••••••</div></div>`:''}
-    <input type="text" id="newAdminPass" placeholder="${adminPassword?'Update password…':'Set a password…'}" maxlength="32"
+    <p>Set a session admin password. People who join your session with the admin link and enter this password get <strong style="color:var(--admin)">⚡ Admin</strong> for that session only.</p>
+    <span class="editor-label" style="margin-bottom:6px;display:block">Session Admin Password</span>
+    ${pwSet?`<div class="info-box" style="margin-bottom:10px"><div class="info-label">Currently set</div><div class="info-value admin-color">••••••••</div></div>`:''}
+    <input type="text" id="newAdminPass" placeholder="${pwSet?'Update password…':'Set a password…'}" maxlength="32"
       onkeydown="if(event.key==='Enter')saveAdminPassword()">
     <div class="modal-error" id="modalErr"></div>
-    <div class="modal-btns" style="margin-bottom:${adminPassword?'18px':'0'}">
-      ${adminPassword?`<button onclick="removeAdminPassword()" style="color:var(--accent2)">Remove</button>`:''}
-      <button class="admin-primary" onclick="saveAdminPassword()">${adminPassword?'Update':'Set Password'}</button>
+    <div class="modal-btns" style="margin-bottom:${pwSet?'18px':'0'}">
+      ${pwSet?`<button onclick="removeAdminPassword()" style="color:var(--accent2)">Remove</button>`:''}
+      <button class="admin-primary" onclick="saveAdminPassword()">${pwSet?'Update':'Set Password'}</button>
     </div>
-    ${adminPassword?`
+    ${activeRoomCode && pwSet ? `
       <hr class="modal-divider">
-      <span class="editor-label" style="margin-bottom:6px;display:block">Invite Link</span>
-      <p style="margin-bottom:10px">Users must be logged in when they open it.</p>
-      <div class="link-row">
-        <input type="text" id="inviteLinkInput" value="${inviteLink}" readonly style="font-size:12px;color:var(--muted);">
-        <button class="copy-btn" id="copyBtn" onclick="copyInviteLink('${inviteLink}')">Copy</button>
+      <span class="editor-label" style="margin-bottom:6px;display:block">Session Links</span>
+      <p style="margin-bottom:8px">Viewer link (read-only):</p>
+      <div class="link-row" style="margin-bottom:10px">
+        <input type="text" value="${sessionLink}" readonly style="font-size:11px;color:var(--muted);">
+        <button class="copy-btn" onclick="copyText('${sessionLink}',this)">Copy</button>
       </div>
-    `:''}
+      <p style="margin-bottom:8px">Admin link (requires password):</p>
+      <div class="link-row">
+        <input type="text" value="${adminSessionLink}" readonly style="font-size:11px;color:var(--muted);">
+        <button class="copy-btn" onclick="copyText('${adminSessionLink}',this)">Copy</button>
+      </div>
+    ` : ''}
     <hr class="modal-divider">
     <div class="modal-btns"><button onclick="closeModal()">Done</button></div>
   `;
-  openModal();
 }
 async function saveAdminPassword(){
   const v=document.getElementById('newAdminPass').value.trim();
   if(!v){document.getElementById('modalErr').textContent='Password cannot be empty.';return;}
-  try{await api('POST','/owner/set-admin-password',{ownerToken:OWNER_TOKEN,adminPassword:v},false);adminPassword=v;save();closeModal();openAccessModal();}
-  catch(e){document.getElementById('modalErr').textContent=e.message;}
+  try{
+    await api('POST','/owner/set-admin-password',{ownerToken:OWNER_TOKEN,adminPassword:v},false);
+    closeModal();
+    openAccessModal();
+  }catch(e){document.getElementById('modalErr').textContent=e.message;}
 }
 async function removeAdminPassword(){
-  try{await api('DELETE','/owner/remove-admin-password',{ownerToken:OWNER_TOKEN},false);adminPassword='';save();closeModal();openAccessModal();}
-  catch(e){alert(e.message);}
+  try{
+    await api('DELETE','/owner/remove-admin-password',{ownerToken:OWNER_TOKEN},false);
+    closeModal();
+    openAccessModal();
+  }catch(e){alert(e.message);}
+}
+function copyText(text,btn){
+  navigator.clipboard.writeText(text).catch(()=>{});
+  const orig=btn.textContent; btn.textContent='Copied!'; btn.classList.add('copied');
+  setTimeout(()=>{btn.textContent=orig;btn.classList.remove('copied');},2000);
 }
 function copyInviteLink(link){navigator.clipboard.writeText(link).then(()=>{const btn=document.getElementById('copyBtn');btn.textContent='Copied!';btn.classList.add('copied');setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('copied');},2000);}).catch(()=>{document.getElementById('inviteLinkInput').select();document.execCommand('copy');});}
 function openModal(){document.getElementById('modalOverlay').classList.add('open');}
@@ -1086,7 +1136,13 @@ async function submitJoin(){
 }
 function enterApp(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
 function skipJoin(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
-function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();render();renderSessionBar();}
+function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();render();renderSessionBar();updateMusicVisibility();}
+function updateMusicVisibility(){
+  const mp=document.getElementById('musicPlayer');
+  if(!mp)return;
+  // Hide music for viewers in a session; show for owner/admin always
+  mp.style.display = isViewerInSession() ? 'none' : '';
+}
 
 // ── Music player ──────────────────────────────────────────────────────────────
 let playlist = [];
@@ -1369,6 +1425,9 @@ function renderSessionBar(room){
   } else {
     bar.style.display='none';
     if(startBtn) startBtn.style.display = isOwner ? 'block' : 'none';
+    // Show join-by-code box for non-owners when not in any session
+    const jb = document.getElementById('joinByCodeBox');
+    if(jb) jb.style.display = (!isOwner && !joinedRoomCode) ? 'block' : 'none';
   }
 }
 
@@ -1377,6 +1436,20 @@ function leaveSession(){
   joinedRoomCode=null; myRoomRole='viewer';
   renderSessionBar();
   render();
+}
+
+async function joinByCode(){
+  const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+  const errEl = document.getElementById('joinCodeErr');
+  errEl.textContent='';
+  if(code.length!==6){errEl.textContent='Code must be 6 characters.';return;}
+  try {
+    await api('GET','/rooms/'+code); // verify it exists
+    await joinRoom(code, false);
+    document.getElementById('joinCodeInput').value='';
+  } catch(e) {
+    errEl.textContent = e.message==='This session has ended.' ? 'That session has ended.' : 'Session not found. Check the code.';
+  }
 }
 
 function copySessionLink(link, type){
@@ -1396,9 +1469,10 @@ async function checkSessionFlow(){
   const sessionCode = params.get('session');
   const wantsAdmin  = params.has('adminrequest');
 
+  // No session param — fall through to old admin-upgrade flow
   if(!sessionCode){ checkJoinFlow(); return; }
 
-  // Verify room exists
+  // Verify room exists first
   try {
     await api('GET','/rooms/'+sessionCode);
   } catch(e){
@@ -1408,18 +1482,16 @@ async function checkSessionFlow(){
   }
 
   if(wantsAdmin){
-    // Show admin join screen adapted for room
+    // Set pending BEFORE showing screen so submitJoin routes correctly
+    window._pendingRoomCode  = sessionCode;
+    window._pendingAdminRoom = true;
     document.getElementById('joinScreen').style.display='flex';
     document.getElementById('joinPrompt').style.display='block';
     document.getElementById('joinSuccess').style.display='none';
     document.getElementById('joinError').textContent='';
     document.getElementById('joinPasswordInput').value='';
-    // Override submit to use room admin join
-    window._pendingRoomCode = sessionCode;
-    window._pendingAdminRoom = true;
     setTimeout(()=>document.getElementById('joinPasswordInput').focus(),100);
   } else {
-    // Viewer join — no password needed
     await joinRoom(sessionCode, false);
   }
 }
