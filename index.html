@@ -354,6 +354,28 @@
   @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
   @keyframes fadeIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
 
+  /* Version badge */
+  .version-badge { display:inline-flex; align-items:center; gap:5px; background:var(--accent-dim); border:1px solid var(--accent); border-radius:20px; padding:3px 10px; font-size:10px; font-weight:700; letter-spacing:2px; color:var(--accent); cursor:pointer; text-transform:uppercase; transition:background 0.2s; }
+  .version-badge:hover { background:var(--accent); color:#000; }
+  .version-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 1.5s infinite; }
+  .version-badge:hover .version-dot { background:#000; }
+
+  /* Changelog modal */
+  .changelog-wrap { max-height:420px; overflow-y:auto; padding-right:4px; }
+  .changelog-wrap::-webkit-scrollbar { width:3px; }
+  .changelog-wrap::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+  .changelog-version { display:flex; align-items:center; gap:10px; margin-bottom:14px; margin-top:4px; }
+  .changelog-version-tag { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:2px; color:var(--accent); }
+  .changelog-version-label { font-size:10px; background:var(--accent-dim); border:1px solid var(--accent); border-radius:20px; padding:2px 8px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; font-weight:700; }
+  .changelog-date { font-size:11px; color:var(--muted); margin-left:auto; }
+  .changelog-section { margin-bottom:18px; }
+  .changelog-section-title { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-weight:600; margin-bottom:8px; }
+  .changelog-item { display:flex; gap:8px; align-items:flex-start; margin-bottom:6px; font-size:13px; color:#c0c0c8; line-height:1.5; }
+  .changelog-item .ci-tag { font-size:9px; font-weight:700; letter-spacing:1px; border-radius:4px; padding:2px 6px; white-space:nowrap; margin-top:2px; flex-shrink:0; }
+  .ci-tag.new { background:#16a34a28; color:#4ade80; border:1px solid #16a34a; }
+  .ci-tag.fix { background:#f59e0b28; color:#fbbf24; border:1px solid #f59e0b; }
+  .ci-tag.improved { background:#6366f128; color:#a5b4fc; border:1px solid #6366f1; }
+
   /* Winner highlight in name list */
   .name-item.winner { background:#16a34a28; border-color:#16a34a; animation:winnerRise 0.5s cubic-bezier(0.34,1.56,0.64,1); }
   .name-item.winner .name-text { color:#4ade80; font-weight:700; }
@@ -463,6 +485,7 @@
   <div class="dropdown-item" onclick="openChangePassword()"><span class="di-icon">🔑</span> Change Password</div>
   <div class="dropdown-item" onclick="openMyStats()"><span class="di-icon">📊</span> My Sessions</div>
   <div class="dropdown-divider" style="height:1px;background:var(--border);margin:4px 0"></div>
+  <div class="dropdown-item" onclick="openChangelog()"><span class="di-icon">🆕</span> What's New</div>
   <div class="dropdown-item" onclick="window.open('tos.html','_blank')"><span class="di-icon">📋</span> Terms of Service</div>
   <div class="dropdown-item" onclick="window.open('privacy.html','_blank')"><span class="di-icon">🔒</span> Privacy Policy</div>
   <div class="dropdown-divider" style="height:1px;background:var(--border);margin:4px 0"></div>
@@ -474,6 +497,9 @@
   <div class="screen-card">
     <div class="screen-icon">🎲</div>
     <h2 style="color:var(--accent)">RANDOM NAME PICKER</h2>
+    <div style="display:flex;justify-content:center;margin-bottom:10px">
+      <span class="version-badge" onclick="openChangelog()"><span class="version-dot"></span>BETA 1.0 — What's New</span>
+    </div>
     <p>Create an account or log in. Your role and history are saved across all devices.</p>
     <div class="screen-tab-row">
       <button class="screen-tab active" id="tabLogin" onclick="switchTab('login')">Log In</button>
@@ -542,6 +568,9 @@
   <header>
     <h1 id="mainTitle" onclick="toggleTitleEditor()">RANDOM NAME PICKER</h1>
     <p class="subtitle">Random Name Selector</p>
+    <div style="display:flex;justify-content:center;margin:6px 0 2px">
+      <span class="version-badge" onclick="openChangelog()"><span class="version-dot"></span>BETA 1.0 — What's New</span>
+    </div>
     <p class="title-edit-hint" id="editHint">✎ Click title to customize</p>
   </header>
 
@@ -1054,6 +1083,58 @@ function renderLeaderboard(){
       <div class="lb-bar-wrap"><div class="lb-bar" style="width:${(count/max*100).toFixed(0)}%"></div></div>
       <span class="lb-count">${count}</span>
     </div>`).join('');
+}
+
+function openChangelog(){
+  document.getElementById('modalContent').innerHTML=`
+    <h2 style="margin-bottom:18px">🎲 Changelog</h2>
+    <div class="changelog-wrap">
+
+      <div class="changelog-section">
+        <div class="changelog-version">
+          <span class="changelog-version-tag">BETA 1.0</span>
+          <span class="changelog-version-label">Current</span>
+          <span class="changelog-date">March 2026</span>
+        </div>
+        <div class="changelog-section-title">🚀 New Features</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Live sessions — share a code and pick with an audience in real time</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Real-time chat inside sessions with mute controls for owner/admin</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Pick history log — see every name picked this session with timestamps</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Leaderboard — track how many times each name has been picked</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Streaks — 🔥 badge when the same name gets picked back to back</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Custom winner message — e.g. "Congratulations [name]! 🎉"</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Animated particle background that matches your accent color</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Music player — play Spotify, YouTube, or Apple Music while you pick</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Groups — organize names into teams and pick from specific groups</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Viewers can submit their own name for owner approval</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Winner name moves to top of list and highlights green with 👑</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Role system — Owner, Admin, Viewer with custom permissions</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Profile pictures, username changes, password management</div>
+        <div class="changelog-section-title" style="margin-top:14px">⚡ Randomizer Settings</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Roll speed and duration sliders</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Allow repeats toggle</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Auto-remove winner from list</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Confetti on pick toggle</div>
+        <div class="changelog-item"><span class="ci-tag new">NEW</span>Pick multiple winners at once (up to 5)</div>
+      </div>
+
+      <div class="changelog-section" style="opacity:0.5">
+        <div class="changelog-version">
+          <span class="changelog-version-tag" style="color:var(--muted)">ALPHA</span>
+          <span class="changelog-date">Early 2026</span>
+        </div>
+        <div class="changelog-section-title">Foundation</div>
+        <div class="changelog-item"><span class="ci-tag improved">BASE</span>Core random name picker with slot-machine animation</div>
+        <div class="changelog-item"><span class="ci-tag improved">BASE</span>Account system with JWT auth</div>
+        <div class="changelog-item"><span class="ci-tag improved">BASE</span>Name list with add, remove, inline editing</div>
+        <div class="changelog-item"><span class="ci-tag improved">BASE</span>Custom title, accent color, button text color</div>
+      </div>
+
+      <div style="text-align:center;padding:12px 0 4px;font-size:12px;color:var(--muted)">More updates coming soon 👀</div>
+    </div>
+    <div class="modal-btns"><button onclick="closeModal()">Close</button></div>
+  `;
+  openModal();
 }
 
 function clearPickHistory(){
