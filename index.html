@@ -374,6 +374,15 @@
       <div class="screen-error" id="registerError"></div>
       <button class="screen-btn accent-btn" id="registerBtn" onclick="submitRegister()">CREATE ACCOUNT</button>
     </div>
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:18px;">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600;">🔗 Have a Session Code?</div>
+      <input class="screen-input" type="text" id="authSessionCode" placeholder="Enter code (e.g. ABC123)" maxlength="6"
+        style="letter-spacing:4px;font-family:'Bebas Neue',sans-serif;font-size:20px;text-align:center;margin-bottom:8px;"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter')joinFromAuth()">
+      <div class="screen-error" id="authCodeError"></div>
+      <button class="screen-btn" onclick="joinFromAuth()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:18px;">JOIN SESSION</button>
+    </div>
   </div>
 </div>
 
@@ -458,6 +467,30 @@
       <div class="result-btn-row">
         <button class="pick-btn" id="pickBtn" onclick="pickName()" disabled>PICK A NAME</button>
       </div>
+      <!-- Inline randomizer settings — owner/admin only -->
+      <div id="inlineRandSettings" style="display:none;width:100%;margin-top:18px;border-top:1px solid var(--border);padding-top:16px;">
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;font-weight:600;">⚙️ Randomizer Settings</div>
+        <div class="rand-setting-row">
+          <div class="rand-setting-label">Roll Speed<small>How fast names cycle</small></div>
+          <input type="range" class="rand-slider" id="speedSlider" min="30" max="200" value="80" oninput="updateRandSettings()">
+          <span class="rand-val" id="speedVal">80ms</span>
+        </div>
+        <div class="rand-setting-row">
+          <div class="rand-setting-label">Roll Duration<small>Ticks before stopping</small></div>
+          <input type="range" class="rand-slider" id="ticksSlider" min="5" max="60" value="25" oninput="updateRandSettings()">
+          <span class="rand-val" id="ticksVal">25</span>
+        </div>
+        <div class="rand-setting-row">
+          <div class="rand-setting-label">Allow Repeats<small>Same name can be picked again</small></div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="allowRepeats" checked onchange="updateRandSettings()">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="rand-setting-row" id="excludeRow" style="display:none">
+          <div class="rand-setting-label">Recent picks excluded<small id="excludeNote">Last picked names won't repeat</small></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -511,46 +544,19 @@
   <div class="side-card" id="sideJoinCard" style="display:none">
     <div class="side-card-title">🔗 Enter Session Code</div>
     <input type="text" class="side-code-input" id="joinCodeInput" maxlength="6"
-      placeholder="A3F9B2"
+      placeholder="ABC123"
       oninput="this.value=this.value.toUpperCase()"
       onkeydown="if(event.key==='Enter')joinByCode()">
     <div id="joinCodeErr" style="font-size:11px;color:var(--accent2);min-height:14px;margin-bottom:6px;"></div>
     <button class="side-join-btn" onclick="joinByCode()">JOIN</button>
   </div>
 
-  <!-- OWNER/ADMIN: Randomizer settings gear -->
-  <div class="side-card" id="sideGearCard" style="display:none">
-    <div class="side-card-title">⚙️ Randomizer</div>
-    <button class="side-gear-btn" id="randSettingsBtn" onclick="toggleRandSettings()" title="Randomizer settings">⚙️ Settings</button>
-  </div>
+<!-- gear card removed — settings now inline -->
 
 </div>
 
 
-<!-- Randomizer Settings Popover (floating) -->
-<div id="randSettings" style="display:none;position:fixed;z-index:150;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 24px;width:280px;box-shadow:0 8px 32px #00000066;">
-  <span class="editor-label" style="margin-bottom:16px;display:block">⚙️ Randomizer Settings</span>
-  <div class="rand-setting-row">
-    <div class="rand-setting-label">Roll Speed<small>How fast the names cycle</small></div>
-    <input type="range" class="rand-slider" id="speedSlider" min="30" max="200" value="80" oninput="updateRandSettings()">
-    <span class="rand-val" id="speedVal">80ms</span>
-  </div>
-  <div class="rand-setting-row">
-    <div class="rand-setting-label">Roll Duration<small>How many ticks before stopping</small></div>
-    <input type="range" class="rand-slider" id="ticksSlider" min="5" max="60" value="25" oninput="updateRandSettings()">
-    <span class="rand-val" id="ticksVal">25</span>
-  </div>
-  <div class="rand-setting-row">
-    <div class="rand-setting-label">Allow Repeats<small>Same name can be picked again</small></div>
-    <label class="toggle-switch">
-      <input type="checkbox" id="allowRepeats" checked onchange="updateRandSettings()">
-      <span class="toggle-track"></span>
-    </label>
-  </div>
-  <div class="rand-setting-row" id="excludeRow" style="display:none">
-    <div class="rand-setting-label">Recent picks excluded<small id="excludeNote">Last picked names won't repeat</small></div>
-  </div>
-</div>
+<!-- rand settings moved inline into result-box -->
 
 <script>
 const API = 'https://randomizenamepickerbackend-production.up.railway.app';
@@ -611,32 +617,7 @@ function save(){
 }
 
 // ── Randomizer settings ───────────────────────────────────────────────────────
-function toggleRandSettings(){
-  const canSeeGear = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner' || !joinedRoomCode;
-  if(!canSeeGear) return;
-  const panel = document.getElementById('randSettings');
-  const btn   = document.getElementById('randSettingsBtn');
-  if(!panel || !btn) return;
-  if(panel.style.display === 'block'){
-    panel.style.display = 'none';
-    return;
-  }
-  // Make visible offscreen first to measure height
-  panel.style.visibility = 'hidden';
-  panel.style.display = 'block';
-  const r  = btn.getBoundingClientRect();
-  const pw = panel.offsetWidth  || 280;
-  const ph = panel.offsetHeight || 220;
-  panel.style.visibility = '';
-  // Place to the LEFT of the gear card (panel is on right side)
-  let left = r.left - pw - 12;
-  let top  = r.top + (r.height / 2) - (ph / 2);
-  if(left < 8) left = r.right + 12; // flip right if not enough room
-  if(top < 8)                            top  = 8;
-  if(top + ph > window.innerHeight - 8)  top  = window.innerHeight - ph - 8;
-  panel.style.left = left + 'px';
-  panel.style.top  = top  + 'px';
-}
+// toggleRandSettings removed — settings are now inline in result-box
 // Close popover when clicking outside
 document.addEventListener('click',e=>{
   const panel=document.getElementById('randSettings');
@@ -671,6 +652,39 @@ function switchTab(tab){
   document.getElementById('tabRegister').classList.toggle('active', tab==='register');
   document.getElementById('loginError').textContent='';
   document.getElementById('registerError').textContent='';
+}
+
+async function joinFromAuth(){
+  // Must be logged in first — prompt to log in if fields are filled, else just store code
+  const code = document.getElementById('authSessionCode').value.trim().toUpperCase();
+  const errEl = document.getElementById('authCodeError');
+  errEl.textContent = '';
+  if(!code || code.length < 4){ errEl.textContent = 'Enter a valid session code.'; return; }
+  // If already has a token, go straight to joining
+  const token = localStorage.getItem('authToken');
+  if(token){
+    // Verify token still valid
+    try {
+      const data = await api('GET','/auth/me');
+      currentUser = data;
+      onLoggedIn();
+      // After app shows, join the room
+      setTimeout(async ()=>{
+        const inp = document.getElementById('joinCodeInput');
+        if(inp) inp.value = code;
+        await joinByCode(code);
+      }, 200);
+      return;
+    } catch {}
+  }
+  // Store code and prompt to log in
+  sessionStorage.setItem('pendingJoinCode', code);
+  errEl.textContent = '';
+  // Fill username/password fields hint
+  const uField = document.getElementById('loginUsername');
+  if(uField && !uField.value) uField.focus();
+  errEl.style.color = 'var(--accent)';
+  errEl.textContent = 'Log in below to join code ' + code;
 }
 
 async function submitLogin(){
@@ -712,7 +726,14 @@ function onLoggedIn(){
   avatarFilter   = LS('avatarFilter_'+currentUser.id,'none');
   avatarSize     = parseInt(LS('avatarSize_'+currentUser.id,'32'));
   avatarBorder   = LS('avatarBorder_'+currentUser.id,'none');
-  checkSessionFlow();
+  // Check if user entered a session code on the login screen
+  const pendingCode = sessionStorage.getItem('pendingJoinCode');
+  if(pendingCode){
+    sessionStorage.removeItem('pendingJoinCode');
+    checkSessionFlow(pendingCode);
+  } else {
+    checkSessionFlow();
+  }
 }
 
 // ── Account pill ──────────────────────────────────────────────────────────────
@@ -1022,8 +1043,8 @@ function updateSidePanel(){
   const sp         = document.getElementById('sidePanel');
   const rcCard     = document.getElementById('sideRoomCode');
   const joinCard   = document.getElementById('sideJoinCard');
-  const gearCard   = document.getElementById('sideGearCard');
   const resultWrap = document.getElementById('resultBoxWrap');
+  const inlineRand = document.getElementById('inlineRandSettings');
   if(!sp) return;
 
   const isViewer   = joinedRoomCode && myRoomRole==='viewer';
@@ -1033,9 +1054,12 @@ function updateSidePanel(){
   // Hide pick box for viewers in a session
   if(resultWrap) resultWrap.style.display = isViewer ? 'none' : '';
 
-  // Side panel visibility
-  const showAnyCard = isOwner || !inSession || canSeeGear;
-  sp.style.display = showAnyCard ? 'flex' : 'none';
+  // Show inline randomizer settings for owner/admin only
+  if(inlineRand) inlineRand.style.display = canSeeGear ? 'block' : 'none';
+
+  // Side panel — only show if there are relevant cards
+  const showSidePanel = (isOwner && activeRoomCode) || (!isOwner && !inSession);
+  sp.style.display = showSidePanel ? 'flex' : 'none';
 
   // Room code card — only for owner while session active
   if(rcCard){
@@ -1047,12 +1071,6 @@ function updateSidePanel(){
 
   // Join card — non-owners not in any session
   if(joinCard) joinCard.style.display = (!isOwner && !inSession) ? 'block' : 'none';
-
-  // Gear card — owner/admin only
-  if(gearCard){
-    gearCard.style.display = canSeeGear ? 'block' : 'none';
-    if(!canSeeGear) document.getElementById('randSettings').style.display='none';
-  }
 }
 
 // ── Name actions ──────────────────────────────────────────────────────────────
@@ -1749,7 +1767,7 @@ function copySessionLink(link, type){
 }
 
 // ── Session join flow (URL-based) ─────────────────────────────────────────────
-async function checkSessionFlow(){
+async function checkSessionFlow(overrideCode){
   const params = new URLSearchParams(window.location.search);
   const sessionCode = params.get('session');
   const wantsAdmin  = params.has('adminrequest');
