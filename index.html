@@ -471,9 +471,9 @@
       <div id="inlineRandSettings" style="display:none;width:100%;margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">
         <button onclick="toggleInlineRand()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 12px;" id="randToggleBtn">
           <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:600;">&#9881; Randomizer Settings</span>
-          <span id="randToggleArrow" style="font-size:11px;color:var(--muted);transition:transform 0.2s;">&#9650; Minimize</span>
+          <span id="randToggleArrow" style="font-size:11px;color:var(--muted);transition:transform 0.2s;">&#9660; Expand</span>
         </button>
-        <div id="randSettingsBody" style="margin-top:12px;">
+        <div id="randSettingsBody" style="display:none;margin-top:12px;">
           <div class="rand-setting-row">
             <div class="rand-setting-label">Roll Speed<small>How fast names cycle</small></div>
             <input type="range" class="rand-slider" id="speedSlider" min="30" max="200" value="80" oninput="updateRandSettings()">
@@ -631,7 +631,7 @@ document.addEventListener('click',e=>{
     panel.style.display='none';
   }
 });
-let randCollapsed = false;
+let randCollapsed = true;
 function toggleInlineRand(){
   randCollapsed = !randCollapsed;
   const body = document.getElementById('randSettingsBody');
@@ -645,7 +645,7 @@ function updateRandSettings(){
   allowRepeats = document.getElementById('allowRepeats').checked;
   document.getElementById('speedVal').textContent = rollSpeed+'ms';
   document.getElementById('ticksVal').textContent = rollTicks;
-  document.getElementById('excludeRow').style.display = allowRepeats ? 'none' : 'flex';
+  document.getElementById('excludeRow').style.display = 'none';
   save();
 }
 function initRandSettings(){
@@ -654,7 +654,7 @@ function initRandSettings(){
   document.getElementById('allowRepeats').checked = allowRepeats;
   document.getElementById('speedVal').textContent = rollSpeed+'ms';
   document.getElementById('ticksVal').textContent = rollTicks;
-  document.getElementById('excludeRow').style.display = allowRepeats ? 'none' : 'flex';
+  document.getElementById('excludeRow').style.display = 'none';
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -1061,7 +1061,7 @@ function updateSidePanel(){
   if(!sp) return;
 
   const isViewer   = joinedRoomCode && myRoomRole==='viewer';
-  const canSeeGear = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
+  const canSeeGear = isOwner && !joinedRoomCode;
   const inSession  = !!(activeRoomCode || joinedRoomCode);
 
   // Hide pick box for viewers in a session
