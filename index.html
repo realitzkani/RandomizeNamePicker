@@ -462,6 +462,10 @@
   <div class="dropdown-item" onclick="openChangeUsername()"><span class="di-icon">✏️</span> Change Username</div>
   <div class="dropdown-item" onclick="openChangePassword()"><span class="di-icon">🔑</span> Change Password</div>
   <div class="dropdown-item" onclick="openMyStats()"><span class="di-icon">📊</span> My Sessions</div>
+  <div class="dropdown-divider" style="height:1px;background:var(--border);margin:4px 0"></div>
+  <div class="dropdown-item" onclick="window.open('tos.html','_blank')"><span class="di-icon">📋</span> Terms of Service</div>
+  <div class="dropdown-item" onclick="window.open('privacy.html','_blank')"><span class="di-icon">🔒</span> Privacy Policy</div>
+  <div class="dropdown-divider" style="height:1px;background:var(--border);margin:4px 0"></div>
   <div class="dropdown-item danger" onclick="logOut()"><span class="di-icon">🚪</span> Log Out</div>
 </div>
 
@@ -499,6 +503,14 @@
         onkeydown="if(event.key==='Enter')joinFromAuth()">
       <div class="screen-error" id="authCodeError"></div>
       <button class="screen-btn" onclick="joinFromAuth()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:18px;">JOIN SESSION</button>
+    </div>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:center;">
+      <p style="font-size:11px;color:var(--muted);line-height:1.7">
+        By creating an account or logging in, you agree to our<br>
+        <a href="tos.html" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600">Terms of Service</a>
+        &nbsp;·&nbsp;
+        <a href="privacy.html" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600">Privacy Policy</a>
+      </p>
     </div>
   </div>
 </div>
