@@ -364,24 +364,21 @@
   .group-filter-btn { font-size:11px; background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:4px 12px; cursor:pointer; color:var(--muted); transition:all 0.15s; }
   .group-filter-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
 
-  /* Chat */
-  .chat-panel { position:fixed; bottom:20px; right:20px; z-index:45; width:260px; background:var(--surface); border:1px solid var(--border); border-radius:14px; display:none; flex-direction:column; box-shadow:0 8px 32px #00000066; }
-  .chat-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); }
-  .chat-header-title { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-weight:600; }
-  .chat-messages { flex:1; max-height:200px; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:6px; }
+  /* Chat (inside session bar) */
+  .session-chat-section { border-top:1px solid var(--border); margin-top:10px; padding-top:10px; }
+  .session-chat-toggle { background:none; border:none; color:var(--muted); cursor:pointer; font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:600; display:flex; align-items:center; gap:6px; padding:0; margin-bottom:6px; width:100%; justify-content:space-between; }
+  .session-chat-toggle:hover { color:var(--text); }
+  .chat-messages { max-height:140px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; margin-bottom:6px; }
   .chat-messages::-webkit-scrollbar { width:3px; }
   .chat-messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
-  .chat-msg { font-size:12px; line-height:1.4; }
+  .chat-msg { font-size:11px; line-height:1.4; }
   .chat-msg .cm-user { font-weight:700; margin-right:4px; }
-  .chat-msg.cm-system { color:var(--muted); font-style:italic; font-size:11px; }
-  .chat-msg.muted-msg { opacity:0.4; }
-  .chat-input-row { display:flex; gap:6px; padding:8px 10px; border-top:1px solid var(--border); }
-  .chat-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:6px 10px; color:var(--text); font-size:12px; outline:none; }
+  .chat-msg.cm-system { color:var(--muted); font-style:italic; font-size:10px; }
+  .chat-msg.muted-msg { opacity:0.35; }
+  .chat-input-row { display:flex; gap:6px; }
+  .chat-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:5px 9px; color:var(--text); font-size:12px; outline:none; font-family:'DM Sans',sans-serif; }
   .chat-input:focus { border-color:var(--accent); }
-  .chat-send-btn { background:var(--accent); color:var(--title-text); border:none; border-radius:8px; padding:6px 10px; font-size:13px; cursor:pointer; }
-  .chat-toggle-btn { position:fixed; bottom:20px; right:20px; z-index:46; background:var(--surface); border:1px solid var(--border); border-radius:50%; width:44px; height:44px; font-size:20px; cursor:pointer; display:none; align-items:center; justify-content:center; box-shadow:0 4px 12px #00000066; transition:background 0.2s; }
-  .chat-toggle-btn:hover { background:var(--surface2); }
-  .chat-unread { position:absolute; top:-2px; right:-2px; background:var(--accent2); color:#fff; border-radius:50%; width:16px; height:16px; font-size:9px; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .chat-send-btn { background:var(--accent); color:var(--title-text); border:none; border-radius:8px; padding:5px 10px; font-size:13px; cursor:pointer; }
   @keyframes modalIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
 </style>
 </head>
@@ -699,23 +696,6 @@
   🔗 START A LIVE SESSION
 </button>
 
-<!-- ── Chat Panel ── -->
-<button class="chat-toggle-btn" id="chatToggleBtn" onclick="toggleChat()" title="Chat" style="display:none">
-  💬
-</button>
-<div class="chat-panel" id="chatPanel">
-  <div class="chat-header">
-    <span class="chat-header-title">💬 Session Chat</span>
-    <button onclick="toggleChat()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1">✕</button>
-  </div>
-  <div class="chat-messages" id="chatMessages">
-    <div class="chat-msg cm-system">Chat starts when someone sends a message.</div>
-  </div>
-  <div class="chat-input-row" id="chatInputRow">
-    <input class="chat-input" id="chatInput" placeholder="Say something…" maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
-    <button class="chat-send-btn" onclick="sendChat()">➤</button>
-  </div>
-</div>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal"><div id="modalContent"></div></div>
@@ -803,6 +783,8 @@ let mutedUsers    = LSJ('mutedUsers', []); // usernames muted by owner/admin
 let chatMessages  = [];
 let chatOpen      = false;
 let chatUnread    = 0;
+let lastChatId    = 0;
+let serverMutes   = [];
 let musicExpanded = false;
 let pickHistory   = LSJ('pickHistory',[]);  // [{name, time}]
 let pickCounts    = LSJ('pickCounts',{});   // {name: count}
@@ -943,33 +925,31 @@ function deleteGroup(g){ delete groups[g]; if(activeGroup===g)activeGroup=null; 
 function toggleNameInGroup(g,n){ if(!groups[g])groups[g]=[]; const idx=groups[g].indexOf(n); if(idx>-1)groups[g].splice(idx,1); else groups[g].push(n); LSSet('groups',JSON.stringify(groups)); }
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
-function toggleChat(){
-  chatOpen=!chatOpen;
-  const panel=document.getElementById('chatPanel');
-  const btn=document.getElementById('chatToggleBtn');
-  if(panel) panel.style.display=chatOpen?'flex':'none';
-  if(btn) btn.style.display=chatOpen?'none':'flex';
-  if(chatOpen){ chatUnread=0; updateChatBadge(); const msgs=document.getElementById('chatMessages'); if(msgs)msgs.scrollTop=msgs.scrollHeight; }
+function toggleChatSection(){
+  const body=document.getElementById('chatBody');
+  const arrow=document.getElementById('chatToggleArrow');
+  if(!body)return;
+  chatOpen=body.style.display==='none';
+  body.style.display=chatOpen?'block':'none';
+  if(arrow) arrow.textContent=chatOpen?'▲':'▼';
+  if(chatOpen){ const msgs=document.getElementById('chatMessages'); if(msgs)msgs.scrollTop=msgs.scrollHeight; }
 }
-function updateChatBadge(){
-  const btn=document.getElementById('chatToggleBtn');
-  if(!btn)return;
-  let badge=btn.querySelector('.chat-unread');
-  if(chatUnread>0){
-    if(!badge){badge=document.createElement('div');badge.className='chat-unread';btn.appendChild(badge);}
-    badge.textContent=chatUnread>9?'9+':chatUnread;
-  } else { if(badge)badge.remove(); }
-}
-function sendChat(){
+function toggleChat(){ toggleChatSection(); }
+function updateChatBadge(){}
+async function sendChat(){
   const inp=document.getElementById('chatInput');
   const text=inp.value.trim();
   if(!text||!currentUser)return;
-  const isMuted=mutedUsers.includes(currentUser.username);
-  if(isMuted){showSuccessToast('Muted','You have been muted in this session');return;}
-  const msg={user:currentUser.username,text,role:joinedRoomCode?myRoomRole:(isOwner?'owner':'viewer'),time:Date.now()};
-  chatMessages.push(msg);
   inp.value='';
-  renderChatMessages();
+  const code=getRoomCode();
+  if(!code)return;
+  try{
+    await api('POST','/rooms/'+code+'/chat',{message:text});
+    await pollChat(); // immediate refresh
+  }catch(e){
+    if(e.message&&e.message.includes('muted')){showSuccessToast('Muted ','You have been muted in this session');}
+    else{ showSuccessToast('Error','Could not send message'); }
+  }
 }
 function renderChatMessages(){
   const list=document.getElementById('chatMessages');
@@ -985,11 +965,13 @@ function renderChatMessages(){
   list.scrollTop=list.scrollHeight;
   if(!chatOpen){chatUnread++;updateChatBadge();}
 }
-function toggleMute(username){
-  const idx=mutedUsers.indexOf(username);
-  if(idx>-1)mutedUsers.splice(idx,1); else mutedUsers.push(username);
-  LSSet('mutedUsers',JSON.stringify(mutedUsers));
-  renderChatMessages();
+async function toggleMuteUser(username, mute){
+  const code=getRoomCode();
+  if(!code)return;
+  try{
+    await api('POST','/rooms/'+code+'/mute',{username, mute});
+    await pollChat();
+  }catch(e){ showSuccessToast('Error','Could not update mute'); }
 }
 
 // ── Pick History & Leaderboard ──────────────────────────────────────────────
@@ -1543,6 +1525,12 @@ function render(){
 
   updateSidePanel();
   updateMusicVisibility();
+  // Always update submit/pending (don't let early-return skip them)
+  const submitRowE = document.getElementById('submitNameRow');
+  if(submitRowE) submitRowE.style.display = (joinedRoomCode && myRoomRole==='viewer') ? 'block' : 'none';
+  const canManagePendingE = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
+  const pendSecE = document.getElementById('pendingNamesSection');
+  if(pendSecE){ pendSecE.style.display = (canManagePendingE && pendingNames.length>0) ? 'block' : 'none'; renderPendingNames(); }
   const list=document.getElementById('nameList');
   if(names.length===0){list.innerHTML='<div class="empty-state">No names yet. Add some above!</div>';updatePill();return;}
   list.innerHTML='';
@@ -1564,20 +1552,12 @@ function render(){
     if(isWinner) list.insertBefore(div, list.firstChild);
     else list.appendChild(div);
   });
-  // Show/hide submit row for viewers in session
-  const submitRow = document.getElementById('submitNameRow');
-  if(submitRow) submitRow.style.display = (joinedRoomCode && myRoomRole==='viewer') ? 'block' : 'none';
-  // Show/hide pending names for owner/admin
-  const canManagePending = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
-  const pendSec = document.getElementById('pendingNamesSection');
-  if(pendSec){ pendSec.style.display = (canManagePending && pendingNames.length>0) ? 'block' : 'none'; renderPendingNames(); }
+  // (submit/pending handled above)
   // Groups
   const gBtn = document.getElementById('groupsBtn');
   if(gBtn) gBtn.style.display = canManagePending ? 'inline-block' : 'none';
   renderGroupFilterBar();
-  // Chat toggle button
-  const ctBtn = document.getElementById('chatToggleBtn');
-  if(ctBtn) ctBtn.style.display = (activeRoomCode||joinedRoomCode) ? 'flex' : 'none';
+  // Chat now lives inside the session bar
   updatePill();
   // session bar visibility
   const sBtn=document.getElementById('startSessionBtn');
@@ -1595,7 +1575,7 @@ function updateSidePanel(){
   const isViewer   = joinedRoomCode && myRoomRole==='viewer';
   const canSeeGear = isOwner && !joinedRoomCode;
   const clearBtn = document.getElementById('pickHistoryClearBtn');
-  if(clearBtn) clearBtn.style.display = isOwner ? 'inline-block' : 'none';
+  if(clearBtn) clearBtn.style.display = (isOwner && !joinedRoomCode) ? 'inline-block' : 'none';
   const inSession  = !!(activeRoomCode || joinedRoomCode);
 
   // Hide pick box for viewers in a session
@@ -2130,10 +2110,36 @@ async function joinRoom(code, asAdmin=false, adminPw=''){
 
 function startRoomPoll(){
   stopRoomPoll();
+  lastChatId=0; chatMessages=[];
   pollRoom();
+  pollChat();
   roomPollTimer = setInterval(pollRoom, 2500);
+  chatPollTimer = setInterval(pollChat, 2000);
 }
-function stopRoomPoll(){ if(roomPollTimer){ clearInterval(roomPollTimer); roomPollTimer=null; } }
+let chatPollTimer = null;
+function stopRoomPoll(){
+  if(roomPollTimer){ clearInterval(roomPollTimer); roomPollTimer=null; }
+  if(chatPollTimer){ clearInterval(chatPollTimer); chatPollTimer=null; }
+}
+
+async function pollChat(){
+  const code=getRoomCode();
+  if(!code)return;
+  try{
+    const data=await api('GET','/rooms/'+code+'/chat?since='+lastChatId);
+    serverMutes=data.muted||[];
+    if(data.messages&&data.messages.length>0){
+      data.messages.forEach(m=>{
+        chatMessages.push({user:m.username,text:m.message,role:m.role,time:new Date(m.sent_at).getTime()});
+        if(m.id>lastChatId) lastChatId=m.id;
+      });
+      renderChatMessages();
+      if(!chatOpen) chatUnread+=data.messages.length;
+    }
+    // Update mute buttons without re-rendering if no new messages
+    if(data.muted) renderChatMessages();
+  }catch{}
+}
 
 let lastPick = null;
 let lastMemberSet = new Set();
@@ -2233,6 +2239,18 @@ function renderSessionBar(room){
         <div class="session-member-list">
           ${members.filter(m=>m.role!=='owner').map(m=>{const em=m.role==='admin'?'⚡':'👁';return `<span class="session-member-chip ${m.role==='admin'?'admin-chip':''}" style="display:inline-flex;align-items:center;gap:4px">${em} ${m.username}<button onclick="kickMember('${activeRoomCode}','${m.username.replace(/'/g,"\\'")}',this)" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1">✕</button></span>`;}).join('')}
         </div>
+      <div class="session-chat-section" id="chatSection">
+        <button class="session-chat-toggle" onclick="toggleChatSection()">
+          <span>💬 Chat</span><span id="chatToggleArrow">▼</span>
+        </button>
+        <div id="chatBody" style="display:none">
+          <div class="chat-messages" id="chatMessages"><div class="chat-msg cm-system">Chat is live — say something!</div></div>
+          <div class="chat-input-row">
+            <input class="chat-input" id="chatInput" placeholder="Say something…" maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
+            <button class="chat-send-btn" onclick="sendChat()">➤</button>
+          </div>
+        </div>
+      </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <button class="session-btn" onclick="copySessionLink('${viewerLink}','view')">📋 Viewer Link</button>
@@ -2268,6 +2286,18 @@ function renderSessionBar(room){
             return '<span class="session-member-chip '+(m.role==='owner'?'owner-chip':m.role==='admin'?'admin-chip':'')+'" style="display:inline-flex;align-items:center;gap:4px">'+m.username+(canKick?'<button onclick="kickMember(\''+code+'\',\''+m.username.replace(/'/g,"\\'")+'\')" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1">✕</button>':'')+'</span>';
           }).join('')}
         </div>
+      <div class="session-chat-section" id="chatSection">
+        <button class="session-chat-toggle" onclick="toggleChatSection()">
+          <span>💬 Chat</span><span id="chatToggleArrow">▼</span>
+        </button>
+        <div id="chatBody" style="display:none">
+          <div class="chat-messages" id="chatMessages"><div class="chat-msg cm-system">Chat is live — say something!</div></div>
+          <div class="chat-input-row">
+            <input class="chat-input" id="chatInput" placeholder="Say something…" maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
+            <button class="chat-send-btn" onclick="sendChat()">➤</button>
+          </div>
+        </div>
+      </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <button class="session-btn end-btn" onclick="leaveSession()">Leave Session</button>
