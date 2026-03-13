@@ -37,8 +37,8 @@
   .dropdown-item .di-icon { font-size:15px; width:18px; text-align:center; }
 
   /* ── Music player (top-left) ── */
-  .music-player { position:fixed; top:16px; left:16px; z-index:50; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:10px 14px; width:280px; transition:width 0.2s; }
-  .music-player.music-expanded { width:380px; }
+  .music-player { position:fixed; top:16px; left:16px; z-index:50; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:10px 14px; width:280px; transition:width 0.3s, max-height 0.3s; }
+  .music-player.music-expanded { width:420px; }
   .music-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
   .music-title { font-size:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--muted); flex:1; }
   .music-toggle { background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; padding:0; transition:color 0.2s; }
@@ -74,8 +74,8 @@
   .music-link-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:7px; padding:6px 10px; color:var(--text); font-size:11px; outline:none; }
   .music-link-input:focus { border-color:var(--accent); }
   .music-link-btn { background:var(--accent); border:none; border-radius:7px; padding:6px 10px; color:var(--title-text); font-size:11px; cursor:pointer; white-space:nowrap; font-weight:600; }
-  .music-embed { margin-top:8px; border-radius:8px; overflow:hidden; }
-  .music-embed iframe { width:100%; border:none; border-radius:8px; display:block; }
+  .music-embed { margin-top:8px; border-radius:10px; overflow:hidden; background:transparent; }
+  .music-embed iframe { width:100%; border:none; border-radius:10px; display:block; transition:height 0.3s ease; }
   .music-playlist { margin-top:4px; max-height:120px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
   .music-playlist::-webkit-scrollbar { width:3px; }
   .music-playlist::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
@@ -92,7 +92,8 @@
   .link-playlist-item:hover .lpi-rm { opacity:1; }
   .playlist-item:hover .pi-remove { opacity:1; }
   /* Collapsed state — show track + progress + mini controls */
-  .music-player { transition:max-height 0.35s cubic-bezier(0.4,0,0.2,1), padding 0.3s; max-height:600px; overflow:hidden; }
+  .music-player { transition:max-height 0.35s cubic-bezier(0.4,0,0.2,1), width 0.3s, padding 0.3s; max-height:600px; overflow:hidden; }
+  .music-player.music-expanded { max-height:700px !important; }
   .music-player.music-collapsed { max-height:110px; }
   .music-collapsed .music-section-tabs,
   .music-collapsed .music-upload-btn,
@@ -391,7 +392,10 @@
 <div class="music-player" id="musicPlayer" style="display:none">
   <div class="music-header">
     <span class="music-title">🎵 Music</span>
-    <button class="music-toggle" onclick="toggleMusicPlayer()" title="Collapse">▲</button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button id="musicExpandBtn" onclick="toggleMusicExpand()" title="Expand embed" style="display:none;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 7px;line-height:1.6">⛶</button>
+      <button class="music-toggle" onclick="toggleMusicPlayer()" title="Collapse">▲</button>
+    </div>
   </div>
   <div class="music-track-name" id="musicTrackName">No track loaded</div>
   <div class="music-progress-row">
@@ -428,7 +432,7 @@
     </div>
     <div style="font-size:10px;color:var(--muted);margin-top:4px;margin-bottom:6px">Paste a playlist, album, or track link</div>
     <div class="music-playlist" id="linkPlaylistSaved" style="max-height:100px;"></div>
-    <button onclick="toggleMusicExpand()" id="musicExpandBtn" style="display:none;width:100%;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:4px;margin-top:2px;">⬇ Expand Embed</button>
+
     <div class="music-embed" id="musicEmbed"></div>
   </div>
 </div>
@@ -846,15 +850,23 @@ function toggleMusicExpand(){
   const btn=document.getElementById('musicExpandBtn');
   if(!mp)return;
   mp.classList.toggle('music-expanded',musicExpanded);
-  // Resize embed iframe
-  const embed=document.getElementById('musicEmbed');
-  if(embed){
-    const iframe=embed.querySelector('iframe');
-    if(iframe) iframe.height=musicExpanded?'300':'160';
-  }
-  if(btn) btn.textContent=musicExpanded?'⬆ Collapse Embed':'⬇ Expand Embed';
+  applyMusicEmbedSize();
+  if(btn){ btn.title=musicExpanded?'Collapse embed':'Expand embed'; btn.textContent=musicExpanded?'⛶':'⛶'; btn.style.color=musicExpanded?'var(--accent)':'var(--muted)'; btn.style.borderColor=musicExpanded?'var(--accent)':'var(--border)'; }
 }
-function showMusicExpandBtn(show){ const b=document.getElementById('musicExpandBtn'); if(b) b.style.display=show?'block':'none'; }
+function applyMusicEmbedSize(){
+  const embed=document.getElementById('musicEmbed');
+  if(!embed)return;
+  const iframe=embed.querySelector('iframe');
+  if(!iframe)return;
+  // In expanded: fill full width, tall height to show full Spotify/YT player with controls
+  iframe.style.width='100%';
+  iframe.height=musicExpanded?'450':'152';
+  // In link tab expanded: also hide the file controls row to give max space to embed
+  const controls=document.getElementById('musicFilesSection');
+  const trackRow=document.querySelector('.music-progress-row');
+  const ctrlRow=document.querySelector('.music-controls');
+}
+function showMusicExpandBtn(show){ const b=document.getElementById('musicExpandBtn'); if(b) b.style.display=show?'inline-block':'none'; }
 
 // ── Submit name (viewer) ──────────────────────────────────────────────────────
 function submitName(){
@@ -2014,19 +2026,24 @@ function removeLinkPlaylist(i){
 function loadLinkEmbed(raw){
   const embed=document.getElementById('musicEmbed');
   if(!embed||!raw) return;
+  musicExpanded=false; // reset expand state on new load
+  const mp=document.getElementById('musicPlayer');
+  if(mp) mp.classList.remove('music-expanded');
+  const btn=document.getElementById('musicExpandBtn');
+  if(btn){ btn.style.color='var(--muted)'; btn.style.borderColor='var(--border)'; }
   let iframeSrc='';
 
   // YouTube
   const ytMatch=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{11})/);
-  if(ytMatch){iframeSrc=`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`;embed.innerHTML=`<iframe src="${iframeSrc}" height="160" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;showMusicExpandBtn(true);return;}
+  if(ytMatch){iframeSrc=`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`;embed.innerHTML=`<iframe src="${iframeSrc}" height="152" allow="autoplay; encrypted-media" allowfullscreen style="width:100%"></iframe>`;showMusicExpandBtn(true);applyMusicEmbedSize();return;}
 
   // Spotify
   const spMatch=raw.match(/spotify\.com\/(track|album|playlist)\/([\w]+)/);
-  if(spMatch){iframeSrc=`https://open.spotify.com/embed/${spMatch[1]}/${spMatch[2]}`;embed.innerHTML=`<iframe src="${iframeSrc}" height="152" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>`;showMusicExpandBtn(true);return;}
+  if(spMatch){iframeSrc=`https://open.spotify.com/embed/${spMatch[1]}/${spMatch[2]}`;embed.innerHTML=`<iframe src="${iframeSrc}" height="152" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" style="width:100%"></iframe>`;showMusicExpandBtn(true);applyMusicEmbedSize();return;}
 
   // Apple Music
   const amMatch=raw.match(/music\.apple\.com\/([a-z]{2})\/(album|playlist)\/[^\/]+\/(\d+)/);
-  if(amMatch){iframeSrc=`https://embed.music.apple.com/${amMatch[1]}/${amMatch[2]}/${amMatch[3]}`;embed.innerHTML=`<iframe src="${iframeSrc}" height="150" allow="autoplay *; encrypted-media *; fullscreen *"></iframe>`;showMusicExpandBtn(true);return;}
+  if(amMatch){iframeSrc=`https://embed.music.apple.com/${amMatch[1]}/${amMatch[2]}/${amMatch[3]}`;embed.innerHTML=`<iframe src="${iframeSrc}" height="152" allow="autoplay *; encrypted-media *; fullscreen *" style="width:100%"></iframe>`;showMusicExpandBtn(true);applyMusicEmbedSize();return;}
 
   embed.innerHTML=`<div style="font-size:11px;color:var(--accent2);padding:8px">Unsupported link. Try YouTube, Spotify, or Apple Music.</div>`;
   showMusicExpandBtn(false);
