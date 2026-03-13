@@ -1065,7 +1065,7 @@ function updateSidePanel(){
   const inSession  = !!(activeRoomCode || joinedRoomCode);
 
   // Hide pick box for viewers in a session
-  if(resultWrap) resultWrap.style.display = isViewer ? 'none' : '';
+  if(resultWrap) resultWrap.style.display = ''; // always visible
 
   // Show inline randomizer settings for owner/admin only
   if(inlineRand) inlineRand.style.display = canSeeGear ? 'block' : 'none';
@@ -1489,16 +1489,30 @@ async function startSession(){
 
 async function endSession(){
   if(!activeRoomCode || !confirm('End this session? All viewers will be disconnected.')) return;
+  const code = activeRoomCode;
   try {
-    await api('DELETE','/rooms/'+activeRoomCode);
-    activeRoomCode = null;
-    isRoomOwner = false;
-    myRoomRole = 'viewer';
-    adminPassword = '';
-    stopRoomPoll();
-    renderSessionBar();
-    render();
-  } catch(e){ alert('Failed to end session: '+e.message); }
+    await api('DELETE','/rooms/'+code);
+  } catch(e){ alert('Failed to end session: '+e.message); return; }
+
+  activeRoomCode = null;
+  isRoomOwner = false;
+  myRoomRole = 'viewer';
+  adminPassword = '';
+  stopRoomPoll();
+  renderSessionBar();
+  render();
+
+  // Smooth "Ending Session" overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;animation:fadeIn 0.2s ease';
+  overlay.innerHTML='<div style="font-size:32px">🔴</div>'
+    +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;letter-spacing:3px;color:var(--muted)">Ending Session</div>'
+    +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:36px;letter-spacing:3px;color:var(--accent)">'+code+'</div>';
+  document.body.appendChild(overlay);
+  await new Promise(r=>setTimeout(r,1600));
+  overlay.style.transition='opacity 0.3s';
+  overlay.style.opacity='0';
+  setTimeout(()=>overlay.remove(),300);
 }
 
 async function joinRoom(code, asAdmin=false, adminPw=''){
