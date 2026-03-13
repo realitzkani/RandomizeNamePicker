@@ -468,27 +468,32 @@
         <button class="pick-btn" id="pickBtn" onclick="pickName()" disabled>PICK A NAME</button>
       </div>
       <!-- Inline randomizer settings — owner/admin only -->
-      <div id="inlineRandSettings" style="display:none;width:100%;margin-top:18px;border-top:1px solid var(--border);padding-top:16px;">
-        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;font-weight:600;">⚙️ Randomizer Settings</div>
-        <div class="rand-setting-row">
-          <div class="rand-setting-label">Roll Speed<small>How fast names cycle</small></div>
-          <input type="range" class="rand-slider" id="speedSlider" min="30" max="200" value="80" oninput="updateRandSettings()">
-          <span class="rand-val" id="speedVal">80ms</span>
-        </div>
-        <div class="rand-setting-row">
-          <div class="rand-setting-label">Roll Duration<small>Ticks before stopping</small></div>
-          <input type="range" class="rand-slider" id="ticksSlider" min="5" max="60" value="25" oninput="updateRandSettings()">
-          <span class="rand-val" id="ticksVal">25</span>
-        </div>
-        <div class="rand-setting-row">
-          <div class="rand-setting-label">Allow Repeats<small>Same name can be picked again</small></div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="allowRepeats" checked onchange="updateRandSettings()">
-            <span class="toggle-track"></span>
-          </label>
-        </div>
-        <div class="rand-setting-row" id="excludeRow" style="display:none">
-          <div class="rand-setting-label">Recent picks excluded<small id="excludeNote">Last picked names won't repeat</small></div>
+      <div id="inlineRandSettings" style="display:none;width:100%;margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">
+        <button onclick="toggleInlineRand()" style="background:none;border:none;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:space-between;padding:0 0 0 0;" id="randToggleBtn">
+          <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:600;">&#9881; Randomizer Settings</span>
+          <span id="randToggleArrow" style="font-size:11px;color:var(--muted);">&#9650;</span>
+        </button>
+        <div id="randSettingsBody" style="margin-top:12px;">
+          <div class="rand-setting-row">
+            <div class="rand-setting-label">Roll Speed<small>How fast names cycle</small></div>
+            <input type="range" class="rand-slider" id="speedSlider" min="30" max="200" value="80" oninput="updateRandSettings()">
+            <span class="rand-val" id="speedVal">80ms</span>
+          </div>
+          <div class="rand-setting-row">
+            <div class="rand-setting-label">Roll Duration<small>Ticks before stopping</small></div>
+            <input type="range" class="rand-slider" id="ticksSlider" min="5" max="60" value="25" oninput="updateRandSettings()">
+            <span class="rand-val" id="ticksVal">25</span>
+          </div>
+          <div class="rand-setting-row">
+            <div class="rand-setting-label">Allow Repeats<small>Same name can be picked again</small></div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="allowRepeats" checked onchange="updateRandSettings()">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="rand-setting-row" id="excludeRow" style="display:none">
+            <div class="rand-setting-label">Recent picks excluded<small id="excludeNote">Last picked names won't repeat</small></div>
+          </div>
         </div>
       </div>
     </div>
@@ -626,6 +631,14 @@ document.addEventListener('click',e=>{
     panel.style.display='none';
   }
 });
+let randCollapsed = false;
+function toggleInlineRand(){
+  randCollapsed = !randCollapsed;
+  const body = document.getElementById('randSettingsBody');
+  const arrow = document.getElementById('randToggleArrow');
+  if(body) body.style.display = randCollapsed ? 'none' : 'block';
+  if(arrow) arrow.innerHTML = randCollapsed ? '&#9660;' : '&#9650;';
+}
 function updateRandSettings(){
   rollSpeed = parseInt(document.getElementById('speedSlider').value);
   rollTicks = parseInt(document.getElementById('ticksSlider').value);
