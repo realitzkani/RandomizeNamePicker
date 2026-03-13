@@ -171,7 +171,14 @@
   .rand-setting-row:last-child { margin-bottom:0; }
   .rand-setting-label { flex:1; font-size:13px; color:var(--text); }
   .rand-setting-label small { display:block; color:var(--muted); font-size:11px; margin-top:2px; }
-  .rand-slider { flex:1; accent-color:var(--accent); cursor:pointer; }
+  .rand-slider {
+    flex:1; cursor:pointer; height:6px; border-radius:4px;
+    -webkit-appearance:none; appearance:none; outline:none; border:none;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) 50%, var(--border) 50%, var(--border) 100%);
+    transition: background 0.1s;
+  }
+  .rand-slider::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; box-shadow:0 0 0 3px var(--accent-dim); }
+  .rand-slider::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:none; box-shadow:0 0 0 3px var(--accent-dim); }
   .rand-val { font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--accent); min-width:36px; text-align:right; }
   .toggle-switch { position:relative; width:40px; height:22px; flex-shrink:0; }
   .toggle-switch input { opacity:0; width:0; height:0; }
@@ -494,6 +501,25 @@
           <div class="rand-setting-row" id="excludeRow" style="display:none">
             <div class="rand-setting-label">Recent picks excluded<small id="excludeNote">Last picked names won't repeat</small></div>
           </div>
+          <div class="rand-setting-row">
+            <div class="rand-setting-label">Auto-Remove Winner<small>Picked name is removed from list</small></div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="autoRemove" onchange="updateRandSettings()">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="rand-setting-row">
+            <div class="rand-setting-label">Confetti on Pick<small>Celebrate the winner</small></div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="confettiOn" checked onchange="updateRandSettings()">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="rand-setting-row">
+            <div class="rand-setting-label">Winners to Pick<small>How many names to select</small></div>
+            <input type="range" class="rand-slider" id="winnersSlider" min="1" max="5" value="1" oninput="updateRandSettings()">
+            <span class="rand-val" id="winnersVal">1</span>
+          </div>
         </div>
       </div>
     </div>
@@ -602,7 +628,10 @@ let recentPicks    = [];
 // Randomizer settings
 let rollSpeed    = parseInt(LS('rollSpeed','80'));
 let rollTicks    = parseInt(LS('rollTicks','25'));
-let allowRepeats = LS('allowRepeats','1') === '1';
+let allowRepeats  = LS('allowRepeats','1') === '1';
+let autoRemove    = LS('autoRemove','0') === '1';
+let confettiOn    = LS('confettiOn','1') === '1';
+let winnersCount  = parseInt(LS('winnersCount','1'));
 
 const isViewerInSession = () => joinedRoomCode && myRoomRole==='viewer';
 const canEdit      = () => !isViewerInSession() && (isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner');
@@ -619,6 +648,9 @@ function save(){
   LSSet('rollSpeed',rollSpeed);
   LSSet('rollTicks',rollTicks);
   LSSet('allowRepeats',allowRepeats?'1':'0');
+  LSSet('autoRemove',autoRemove?'1':'0');
+  LSSet('confettiOn',confettiOn?'1':'0');
+  LSSet('winnersCount',winnersCount);
 }
 
 // ── Randomizer settings ───────────────────────────────────────────────────────
@@ -632,6 +664,21 @@ document.addEventListener('click',e=>{
   }
 });
 let randCollapsed = true;
+
+function launchConfetti(){
+  const colors=['var(--accent)','#ff5c5c','#a78bfa','#34d399','#60a5fa'];
+  for(let i=0;i<60;i++){
+    const el=document.createElement('div');
+    const size=Math.random()*8+4;
+    el.style.cssText=`position:fixed;top:-10px;left:${Math.random()*100}vw;width:${size}px;height:${size}px;background:${colors[Math.floor(Math.random()*colors.length)]};border-radius:${Math.random()>0.5?'50%':'2px'};pointer-events:none;z-index:9999;opacity:1;transition:transform ${1+Math.random()}s ease-out,opacity 0.3s ease ${1+Math.random()*0.5}s`;
+    document.body.appendChild(el);
+    requestAnimationFrame(()=>{
+      el.style.transform=`translateY(${80+Math.random()*40}vh) rotate(${Math.random()*720}deg)`;
+      el.style.opacity='0';
+    });
+    setTimeout(()=>el.remove(),2500);
+  }
+}
 function toggleInlineRand(){
   randCollapsed = !randCollapsed;
   const body = document.getElementById('randSettingsBody');
@@ -639,9 +686,16 @@ function toggleInlineRand(){
   if(body) body.style.display = randCollapsed ? 'none' : 'block';
   if(arrow) arrow.innerHTML = randCollapsed ? '&#9660; Expand' : '&#9650; Minimize';
 }
+function updateSliderFill(el){
+  const min=parseFloat(el.min), max=parseFloat(el.max), val=parseFloat(el.value);
+  const pct=((val-min)/(max-min))*100;
+  el.style.background=`linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, var(--border) ${pct}%, var(--border) 100%)`;
+}
 function updateRandSettings(){
   rollSpeed = parseInt(document.getElementById('speedSlider').value);
   rollTicks = parseInt(document.getElementById('ticksSlider').value);
+  updateSliderFill(document.getElementById('speedSlider'));
+  updateSliderFill(document.getElementById('ticksSlider'));
   allowRepeats = document.getElementById('allowRepeats').checked;
   document.getElementById('speedVal').textContent = rollSpeed+'ms';
   document.getElementById('ticksVal').textContent = rollTicks;
@@ -652,9 +706,16 @@ function initRandSettings(){
   document.getElementById('speedSlider').value = rollSpeed;
   document.getElementById('ticksSlider').value = rollTicks;
   document.getElementById('allowRepeats').checked = allowRepeats;
+  document.getElementById('autoRemove').checked = autoRemove;
+  document.getElementById('confettiOn').checked = confettiOn;
+  document.getElementById('winnersSlider').value = winnersCount;
+  document.getElementById('winnersVal').textContent = winnersCount;
   document.getElementById('speedVal').textContent = rollSpeed+'ms';
   document.getElementById('ticksVal').textContent = rollTicks;
   document.getElementById('excludeRow').style.display = 'none';
+  updateSliderFill(document.getElementById('speedSlider'));
+  updateSliderFill(document.getElementById('ticksSlider'));
+  updateSliderFill(document.getElementById('winnersSlider'));
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
