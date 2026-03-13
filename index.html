@@ -38,6 +38,7 @@
 
   /* ── Music player (top-left) ── */
   .music-player { position:fixed; top:16px; left:16px; z-index:50; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:10px 14px; width:280px; transition:width 0.2s; }
+  .music-player.music-expanded { width:380px; }
   .music-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
   .music-title { font-size:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--muted); flex:1; }
   .music-toggle { background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; padding:0; transition:color 0.2s; }
@@ -340,6 +341,46 @@
   @keyframes sessionLeave { from{opacity:1;transform:scale(1)} to{opacity:0;transform:scale(0.97)} }
   @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
   @keyframes fadeIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
+
+  /* Winner highlight in name list */
+  .name-item.winner { background:#16a34a28; border-color:#16a34a; animation:winnerRise 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+  .name-item.winner .name-text { color:#4ade80; font-weight:700; }
+  .winner-crown { font-size:13px; }
+  @keyframes winnerRise { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+  /* Submit name (viewer) */
+  .submit-name-row { display:flex; gap:8px; margin-bottom:8px; }
+  .submit-name-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 14px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; outline:none; }
+  .submit-name-input:focus { border-color:var(--admin); }
+  .submit-name-btn { background:var(--admin); color:#0d0d0f; border:none; border-radius:10px; padding:10px 16px; font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:1px; cursor:pointer; }
+  .pending-name-item { display:flex; align-items:center; justify-content:space-between; padding:7px 12px; background:var(--admin-dim); border:1px solid var(--admin); border-radius:8px; margin-bottom:4px; font-size:12px; }
+  .pending-name-item .pni-name { flex:1; font-weight:600; }
+  .pending-name-item .pni-sub { font-size:10px; color:var(--admin); margin-right:8px; }
+
+  /* Groups */
+  .group-tag { font-size:10px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:2px 8px; color:var(--muted); cursor:pointer; }
+  .group-filter-bar { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .group-filter-btn { font-size:11px; background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:4px 12px; cursor:pointer; color:var(--muted); transition:all 0.15s; }
+  .group-filter-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
+
+  /* Chat */
+  .chat-panel { position:fixed; bottom:20px; right:20px; z-index:45; width:260px; background:var(--surface); border:1px solid var(--border); border-radius:14px; display:none; flex-direction:column; box-shadow:0 8px 32px #00000066; }
+  .chat-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); }
+  .chat-header-title { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  .chat-messages { flex:1; max-height:200px; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:6px; }
+  .chat-messages::-webkit-scrollbar { width:3px; }
+  .chat-messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+  .chat-msg { font-size:12px; line-height:1.4; }
+  .chat-msg .cm-user { font-weight:700; margin-right:4px; }
+  .chat-msg.cm-system { color:var(--muted); font-style:italic; font-size:11px; }
+  .chat-msg.muted-msg { opacity:0.4; }
+  .chat-input-row { display:flex; gap:6px; padding:8px 10px; border-top:1px solid var(--border); }
+  .chat-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:6px 10px; color:var(--text); font-size:12px; outline:none; }
+  .chat-input:focus { border-color:var(--accent); }
+  .chat-send-btn { background:var(--accent); color:var(--title-text); border:none; border-radius:8px; padding:6px 10px; font-size:13px; cursor:pointer; }
+  .chat-toggle-btn { position:fixed; bottom:20px; right:20px; z-index:46; background:var(--surface); border:1px solid var(--border); border-radius:50%; width:44px; height:44px; font-size:20px; cursor:pointer; display:none; align-items:center; justify-content:center; box-shadow:0 4px 12px #00000066; transition:background 0.2s; }
+  .chat-toggle-btn:hover { background:var(--surface2); }
+  .chat-unread { position:absolute; top:-2px; right:-2px; background:var(--accent2); color:#fff; border-radius:50%; width:16px; height:16px; font-size:9px; display:flex; align-items:center; justify-content:center; font-weight:700; }
   @keyframes modalIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
 </style>
 </head>
@@ -387,6 +428,7 @@
     </div>
     <div style="font-size:10px;color:var(--muted);margin-top:4px;margin-bottom:6px">Paste a playlist, album, or track link</div>
     <div class="music-playlist" id="linkPlaylistSaved" style="max-height:100px;"></div>
+    <button onclick="toggleMusicExpand()" id="musicExpandBtn" style="display:none;width:100%;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:4px;margin-top:2px;">⬇ Expand Embed</button>
     <div class="music-embed" id="musicEmbed"></div>
   </div>
 </div>
@@ -611,12 +653,30 @@
         <div class="mode-badge viewer" id="modeBadge">● Viewer</div>
         <div class="section-title">NAME LIST</div>
       </div>
-      <span class="count-badge" id="countBadge">0 names</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="count-badge" id="countBadge">0 names</span>
+        <button id="groupsBtn" onclick="openGroupsModal()" style="display:none;font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;color:var(--muted);cursor:pointer;">🗂 Groups</button>
+      </div>
     </div>
+    <!-- Group filter bar (owner/admin only) -->
+    <div class="group-filter-bar" id="groupFilterBar" style="display:none"></div>
     <div class="input-row" id="inputRow" style="display:none">
       <input type="text" id="nameInput" placeholder="Enter a name…" maxlength="40"
         onkeydown="if(event.key==='Enter')addName()">
       <button class="add-btn" onclick="addName()">+</button>
+    </div>
+    <!-- Viewer submit name row -->
+    <div id="submitNameRow" style="display:none;margin-bottom:8px;">
+      <div style="font-size:11px;color:var(--admin);margin-bottom:6px;letter-spacing:1px;">⚡ Submit your name to the list</div>
+      <div class="submit-name-row">
+        <input class="submit-name-input" id="submitNameInput" placeholder="Enter your name…" maxlength="40" onkeydown="if(event.key==='Enter')submitName()">
+        <button class="submit-name-btn" onclick="submitName()">SUBMIT</button>
+      </div>
+    </div>
+    <!-- Pending approvals (owner/admin sees these) -->
+    <div id="pendingNamesSection" style="display:none;margin-bottom:10px;">
+      <div style="font-size:10px;letter-spacing:2px;color:var(--admin);text-transform:uppercase;font-weight:600;margin-bottom:6px;">⏳ Pending Approval</div>
+      <div id="pendingNamesList"></div>
     </div>
     <div class="name-list" id="nameList"><div class="empty-state">No names yet.</div></div>
     <button class="clear-all-btn" id="clearAllBtn" style="display:none" onclick="clearAll()">Clear all</button>
@@ -634,6 +694,24 @@
 <button class="start-session-btn" id="startSessionBtn" onclick="startSession()" style="display:none">
   🔗 START A LIVE SESSION
 </button>
+
+<!-- ── Chat Panel ── -->
+<button class="chat-toggle-btn" id="chatToggleBtn" onclick="toggleChat()" title="Chat" style="display:none">
+  💬
+</button>
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-header">
+    <span class="chat-header-title">💬 Session Chat</span>
+    <button onclick="toggleChat()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1">✕</button>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-msg cm-system">Chat starts when someone sends a message.</div>
+  </div>
+  <div class="chat-input-row" id="chatInputRow">
+    <input class="chat-input" id="chatInput" placeholder="Say something…" maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="chat-send-btn" onclick="sendChat()">➤</button>
+  </div>
+</div>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal"><div id="modalContent"></div></div>
@@ -713,6 +791,15 @@ let autoRemove    = LS('autoRemove','0') === '1';
 let confettiOn    = LS('confettiOn','1') === '1';
 let winnersCount  = parseInt(LS('winnersCount','1'));
 let winnerMsg     = LS('winnerMsg','Congratulations [name]! 🎉');
+let lastWinners   = [];          // names highlighted green after pick
+let groups        = LSJ('groups', {});   // {groupName: [names]}
+let activeGroup   = null;        // null = all names
+let pendingNames  = [];          // [{name, submitter}] waiting for approval
+let mutedUsers    = LSJ('mutedUsers', []); // usernames muted by owner/admin
+let chatMessages  = [];
+let chatOpen      = false;
+let chatUnread    = 0;
+let musicExpanded = false;
 let pickHistory   = LSJ('pickHistory',[]);  // [{name, time}]
 let pickCounts    = LSJ('pickCounts',{});   // {name: count}
 let currentStreak = {name:'', count:0};
@@ -751,6 +838,147 @@ document.addEventListener('click',e=>{
   }
 });
 let randCollapsed = true;
+
+// ── Music expand ─────────────────────────────────────────────────────────────
+function toggleMusicExpand(){
+  musicExpanded=!musicExpanded;
+  const mp=document.getElementById('musicPlayer');
+  const btn=document.getElementById('musicExpandBtn');
+  if(!mp)return;
+  mp.classList.toggle('music-expanded',musicExpanded);
+  // Resize embed iframe
+  const embed=document.getElementById('musicEmbed');
+  if(embed){
+    const iframe=embed.querySelector('iframe');
+    if(iframe) iframe.height=musicExpanded?'300':'160';
+  }
+  if(btn) btn.textContent=musicExpanded?'⬆ Collapse Embed':'⬇ Expand Embed';
+}
+function showMusicExpandBtn(show){ const b=document.getElementById('musicExpandBtn'); if(b) b.style.display=show?'block':'none'; }
+
+// ── Submit name (viewer) ──────────────────────────────────────────────────────
+function submitName(){
+  const inp=document.getElementById('submitNameInput');
+  const name=inp.value.trim();
+  if(!name)return;
+  if(names.some(n=>n.toLowerCase()===name.toLowerCase())||pendingNames.some(p=>p.name.toLowerCase()===name.toLowerCase())){
+    inp.style.borderColor='var(--accent2)'; setTimeout(()=>inp.style.borderColor='',1200); return;
+  }
+  pendingNames.push({name, submitter: currentUser?currentUser.username:'Viewer'});
+  inp.value='';
+  showSuccessToast('Submitted!','Waiting for owner approval');
+  render();
+}
+
+function renderPendingNames(){
+  const list=document.getElementById('pendingNamesList');
+  if(!list)return;
+  list.innerHTML=pendingNames.map((p,i)=>`
+    <div class="pending-name-item">
+      <span class="pni-name">${esc(p.name)}</span>
+      <span class="pni-sub">from ${esc(p.submitter)}</span>
+      <button onclick="approvePending(${i})" style="background:var(--admin);color:#0d0d0f;border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;margin-right:4px">✓</button>
+      <button onclick="rejectPending(${i})" style="background:none;border:1px solid var(--accent2);color:var(--accent2);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+function approvePending(i){ names.push(pendingNames[i].name); pendingNames.splice(i,1); save(); pushRoomNames(); render(); }
+function rejectPending(i){ pendingNames.splice(i,1); render(); }
+
+// ── Groups ────────────────────────────────────────────────────────────────────
+function renderGroupFilterBar(){
+  const bar=document.getElementById('groupFilterBar');
+  if(!bar)return;
+  const canManage=isOwner||isAdmin||myRoomRole==='admin'||myRoomRole==='owner';
+  if(!canManage||Object.keys(groups).length===0){bar.style.display='none';return;}
+  bar.style.display='flex';
+  bar.innerHTML=[['null','All Names'],...Object.keys(groups).map(g=>[g,g])].map(([val,label])=>`
+    <button class="group-filter-btn ${activeGroup===val||(!activeGroup&&val==='null')?'active':''}" onclick="setActiveGroup(${val==='null'?'null':'\''+val+'\''})">
+      ${val==='null'?'📋':('🔵 ')}${esc(label)}
+    </button>`).join('');
+}
+function setActiveGroup(g){ activeGroup=g; render(); }
+
+function openGroupsModal(){
+  if(!isOwner&&!isAdmin&&myRoomRole!=='admin'&&myRoomRole!=='owner')return;
+  const gList=Object.entries(groups);
+  document.getElementById('modalContent').innerHTML=`
+    <h2>🗂 Groups</h2>
+    <p style="color:var(--muted);margin-bottom:14px">Organize names into groups. Pick from a specific group using the filter bar.</p>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <input id="newGroupInput" type="text" placeholder="New group name…" maxlength="30"
+        style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none"
+        onkeydown="if(event.key==='Enter')createGroup()">
+      <button onclick="createGroup()" style="background:var(--accent);color:var(--title-text);border:none;border-radius:8px;padding:8px 16px;font-family:'Bebas Neue',sans-serif;font-size:16px;cursor:pointer">Add</button>
+    </div>
+    ${gList.length===0?'<div style="font-size:12px;color:var(--muted)">No groups yet.</div>':gList.map(([gname,gnames])=>`
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-weight:600;font-size:13px">🔵 ${esc(gname)}</span>
+          <button onclick="deleteGroup('${gname.replace(/'/g,"\\'")}');openGroupsModal();" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px">Delete</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
+          ${names.map(n=>`<span onclick="toggleNameInGroup('${gname.replace(/'/g,"\\'")}','${n.replace(/'/g,"\\'")}');openGroupsModal();"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;${gnames.includes(n)?'background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent)':'background:var(--surface);border:1px solid var(--border);color:var(--muted)'}">${esc(n)}</span>`).join('')}
+        </div>
+        <div style="font-size:10px;color:var(--muted)">${gnames.filter(n=>names.includes(n)).length} names assigned</div>
+      </div>`).join('')}
+    <div class="modal-btns"><button onclick="closeModal()">Done</button></div>
+  `;
+  openModal();
+}
+function createGroup(){ const v=document.getElementById('newGroupInput').value.trim(); if(!v||groups[v])return; groups[v]=[]; LSSet('groups',JSON.stringify(groups)); openGroupsModal(); }
+function deleteGroup(g){ delete groups[g]; if(activeGroup===g)activeGroup=null; LSSet('groups',JSON.stringify(groups)); render(); }
+function toggleNameInGroup(g,n){ if(!groups[g])groups[g]=[]; const idx=groups[g].indexOf(n); if(idx>-1)groups[g].splice(idx,1); else groups[g].push(n); LSSet('groups',JSON.stringify(groups)); }
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+function toggleChat(){
+  chatOpen=!chatOpen;
+  const panel=document.getElementById('chatPanel');
+  const btn=document.getElementById('chatToggleBtn');
+  if(panel) panel.style.display=chatOpen?'flex':'none';
+  if(btn) btn.style.display=chatOpen?'none':'flex';
+  if(chatOpen){ chatUnread=0; updateChatBadge(); const msgs=document.getElementById('chatMessages'); if(msgs)msgs.scrollTop=msgs.scrollHeight; }
+}
+function updateChatBadge(){
+  const btn=document.getElementById('chatToggleBtn');
+  if(!btn)return;
+  let badge=btn.querySelector('.chat-unread');
+  if(chatUnread>0){
+    if(!badge){badge=document.createElement('div');badge.className='chat-unread';btn.appendChild(badge);}
+    badge.textContent=chatUnread>9?'9+':chatUnread;
+  } else { if(badge)badge.remove(); }
+}
+function sendChat(){
+  const inp=document.getElementById('chatInput');
+  const text=inp.value.trim();
+  if(!text||!currentUser)return;
+  const isMuted=mutedUsers.includes(currentUser.username);
+  if(isMuted){showSuccessToast('Muted','You have been muted in this session');return;}
+  const msg={user:currentUser.username,text,role:joinedRoomCode?myRoomRole:(isOwner?'owner':'viewer'),time:Date.now()};
+  chatMessages.push(msg);
+  inp.value='';
+  renderChatMessages();
+}
+function renderChatMessages(){
+  const list=document.getElementById('chatMessages');
+  if(!list)return;
+  const roleColor=r=>r==='owner'?'var(--accent)':r==='admin'?'var(--admin)':'var(--muted)';
+  list.innerHTML=chatMessages.map(m=>{
+    const isMuted=mutedUsers.includes(m.user);
+    return `<div class="chat-msg${isMuted?' muted-msg':''}">
+      <span class="cm-user" style="color:${roleColor(m.role)}">${esc(m.user)}</span>${esc(m.text)}
+      ${(isOwner||(isAdmin&&m.role==='viewer'))&&m.user!==currentUser?.username?`<button onclick="toggleMute('${m.user.replace(/'/g,"\\'")}');renderChatMessages();" style="background:none;border:none;font-size:10px;color:var(--muted);cursor:pointer;margin-left:4px">${mutedUsers.includes(m.user)?'🔊':'🔇'}</button>`:''}
+    </div>`;
+  }).join('');
+  list.scrollTop=list.scrollHeight;
+  if(!chatOpen){chatUnread++;updateChatBadge();}
+}
+function toggleMute(username){
+  const idx=mutedUsers.indexOf(username);
+  if(idx>-1)mutedUsers.splice(idx,1); else mutedUsers.push(username);
+  LSSet('mutedUsers',JSON.stringify(mutedUsers));
+  renderChatMessages();
+}
 
 // ── Pick History & Leaderboard ──────────────────────────────────────────────
 let historyTab = 'history';
@@ -1306,18 +1534,38 @@ function render(){
   const list=document.getElementById('nameList');
   if(names.length===0){list.innerHTML='<div class="empty-state">No names yet. Add some above!</div>';updatePill();return;}
   list.innerHTML='';
-  names.forEach((name,i)=>{
+  // Filter by active group
+  const displayNames = activeGroup && groups[activeGroup] ? names.filter(n=>groups[activeGroup].includes(n)) : names;
+  displayNames.forEach((name,i)=>{
+    const realIdx = names.indexOf(name);
     const isDupe=freq[name.toLowerCase()]>1;
+    const isWinner = lastWinners.includes(name);
     const div=document.createElement('div');
-    div.className='name-item'+(isDupe?' duplicate':'');
+    div.className='name-item'+(isDupe?' duplicate':'')+(isWinner?' winner':'');
     div.innerHTML=`
-      <span class="name-text" ondblclick="${canEdit()?`startEditName(${i},this)`:''}" title="${canEdit()?'Double-click to edit':''}">${esc(name)}</span>
+      ${isWinner?'<span class="winner-crown">👑</span>':''}
+      <span class="name-text" ondblclick="${canEdit()?`startEditName(${realIdx},this)`:''}" title="${canEdit()?'Double-click to edit':''}">${esc(name)}</span>
       ${isDupe?'<span class="dupe-tag">Duplicate</span>':''}
-      ${canEdit()?`<button class="edit-name-btn" onclick="startEditName(${i},this.previousElementSibling)" title="Edit">✎</button>`:''}
-      ${canEdit()?`<button class="remove-btn" onclick="removeName(${i})">×</button>`:''}
+      ${canEdit()?`<button class="edit-name-btn" onclick="startEditName(${realIdx},this.previousElementSibling)" title="Edit">✎</button>`:''}
+      ${canEdit()?`<button class="remove-btn" onclick="removeName(${realIdx})">×</button>`:''}
     `;
-    list.appendChild(div);
+    if(isWinner) list.insertBefore(div, list.firstChild);
+    else list.appendChild(div);
   });
+  // Show/hide submit row for viewers in session
+  const submitRow = document.getElementById('submitNameRow');
+  if(submitRow) submitRow.style.display = (joinedRoomCode && myRoomRole==='viewer') ? 'block' : 'none';
+  // Show/hide pending names for owner/admin
+  const canManagePending = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
+  const pendSec = document.getElementById('pendingNamesSection');
+  if(pendSec){ pendSec.style.display = (canManagePending && pendingNames.length>0) ? 'block' : 'none'; renderPendingNames(); }
+  // Groups
+  const gBtn = document.getElementById('groupsBtn');
+  if(gBtn) gBtn.style.display = canManagePending ? 'inline-block' : 'none';
+  renderGroupFilterBar();
+  // Chat toggle button
+  const ctBtn = document.getElementById('chatToggleBtn');
+  if(ctBtn) ctBtn.style.display = (activeRoomCode||joinedRoomCode) ? 'flex' : 'none';
   updatePill();
   // session bar visibility
   const sBtn=document.getElementById('startSessionBtn');
@@ -1770,17 +2018,18 @@ function loadLinkEmbed(raw){
 
   // YouTube
   const ytMatch=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{11})/);
-  if(ytMatch){iframeSrc=`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`;embed.innerHTML=`<iframe src="${iframeSrc}" height="160" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;return;}
+  if(ytMatch){iframeSrc=`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`;embed.innerHTML=`<iframe src="${iframeSrc}" height="160" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;showMusicExpandBtn(true);return;}
 
   // Spotify
   const spMatch=raw.match(/spotify\.com\/(track|album|playlist)\/([\w]+)/);
-  if(spMatch){iframeSrc=`https://open.spotify.com/embed/${spMatch[1]}/${spMatch[2]}`;embed.innerHTML=`<iframe src="${iframeSrc}" height="152" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>`;return;}
+  if(spMatch){iframeSrc=`https://open.spotify.com/embed/${spMatch[1]}/${spMatch[2]}`;embed.innerHTML=`<iframe src="${iframeSrc}" height="152" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>`;showMusicExpandBtn(true);return;}
 
   // Apple Music
   const amMatch=raw.match(/music\.apple\.com\/([a-z]{2})\/(album|playlist)\/[^\/]+\/(\d+)/);
-  if(amMatch){iframeSrc=`https://embed.music.apple.com/${amMatch[1]}/${amMatch[2]}/${amMatch[3]}`;embed.innerHTML=`<iframe src="${iframeSrc}" height="150" allow="autoplay *; encrypted-media *; fullscreen *"></iframe>`;return;}
+  if(amMatch){iframeSrc=`https://embed.music.apple.com/${amMatch[1]}/${amMatch[2]}/${amMatch[3]}`;embed.innerHTML=`<iframe src="${iframeSrc}" height="150" allow="autoplay *; encrypted-media *; fullscreen *"></iframe>`;showMusicExpandBtn(true);return;}
 
   embed.innerHTML=`<div style="font-size:11px;color:var(--accent2);padding:8px">Unsupported link. Try YouTube, Spotify, or Apple Music.</div>`;
+  showMusicExpandBtn(false);
 }
 
 function toggleMusicPlayer(){
