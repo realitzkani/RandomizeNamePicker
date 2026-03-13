@@ -1029,6 +1029,8 @@ function render(){
   const uname=currentUser?currentUser.username:'you';
   document.getElementById('lockInfo').textContent=isOwner?'Manage who can edit this session.':isAdmin||myRoomRole==='admin'?`Editing as ${uname}.`:`Viewing only.`;
 
+  updateSidePanel();
+  updateMusicVisibility();
   const list=document.getElementById('nameList');
   if(names.length===0){list.innerHTML='<div class="empty-state">No names yet. Add some above!</div>';updatePill();return;}
   list.innerHTML='';
@@ -1045,8 +1047,6 @@ function render(){
     list.appendChild(div);
   });
   updatePill();
-  updateSidePanel();
-  updateMusicVisibility();
   // session bar visibility
   const sBtn=document.getElementById('startSessionBtn');
   if(sBtn) sBtn.style.display=(isOwner&&!activeRoomCode&&!joinedRoomCode)?'block':'none';
