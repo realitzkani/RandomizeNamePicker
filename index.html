@@ -3,7 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Random Name Picker</title>
+<title>Random Name Picker — Free Live Session Tool</title>
+<meta name="description" content="Free random name picker with live sessions, leaderboards, music, and more. Perfect for teachers, streamers, and game nights.">
+<meta name="keywords" content="random name picker, name wheel, pick a name, random selector, classroom tool, live session, wheel of names">
+<meta name="author" content="NamePicker">
+<meta property="og:title" content="Random Name Picker — Free Live Session Tool">
+<meta property="og:description" content="Pick random names with live sessions, leaderboards, music player and more. Free to use.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://realitzkani.github.io/RandomizeNamePicker/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Random Name Picker">
+<meta name="twitter:description" content="Free random name picker with live sessions and leaderboards.">
+<link rel="canonical" href="https://realitzkani.github.io/RandomizeNamePicker/">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -695,6 +706,14 @@
 <button class="start-session-btn" id="startSessionBtn" onclick="startSession()" style="display:none">
   🔗 START A LIVE SESSION
 </button>
+
+<footer style="margin-top:32px;padding:16px 0 8px;text-align:center;border-top:1px solid var(--border);width:100%;max-width:600px">
+  <span style="font-size:11px;color:var(--muted)">
+    <a href="about.html" style="color:var(--muted);text-decoration:none;margin:0 10px">About</a>·
+    <a href="privacy.html" style="color:var(--muted);text-decoration:none;margin:0 10px">Privacy Policy</a>·
+    <span style="margin:0 10px">Free to use · No ads</span>
+  </span>
+</footer>
 
 
 <div class="modal-overlay" id="modalOverlay">
@@ -1555,7 +1574,7 @@ function render(){
   // (submit/pending handled above)
   // Groups
   const gBtn = document.getElementById('groupsBtn');
-  if(gBtn) gBtn.style.display = canManagePending ? 'inline-block' : 'none';
+  if(gBtn) gBtn.style.display = canManagePendingE ? 'inline-block' : 'none';
   renderGroupFilterBar();
   // Chat now lives inside the session bar
   updatePill();
