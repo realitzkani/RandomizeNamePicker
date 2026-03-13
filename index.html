@@ -164,6 +164,41 @@
   .side-gear-btn:hover { background:var(--border); }
   @media (max-width: 900px) { .side-panel { display:none; } }
   .result-glow { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%,var(--accent-dim) 0%,transparent 70%); pointer-events:none; }
+
+  /* ── Pick History ── */
+  .pick-history { width:100%; margin-top:14px; border-top:1px solid var(--border); padding-top:14px; }
+  .pick-history-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .pick-history-title { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  .pick-history-clear { font-size:10px; color:var(--accent2); background:none; border:none; cursor:pointer; padding:0; }
+  .pick-history-list { display:flex; flex-direction:column; gap:4px; max-height:150px; overflow-y:auto; }
+  .pick-history-list::-webkit-scrollbar { width:3px; }
+  .pick-history-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+  .pick-history-item { display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:var(--surface2); border-radius:8px; font-size:12px; }
+  .pick-history-name { font-weight:600; }
+  .pick-history-streak { font-size:10px; color:#f59e0b; font-weight:700; letter-spacing:1px; }
+  .pick-history-num { font-size:10px; color:var(--muted); }
+
+  /* ── Winner message ── */
+  .winner-overlay { position:fixed; inset:0; z-index:250; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px; pointer-events:none; }
+  .winner-msg-box { background:var(--surface); border:2px solid var(--accent); border-radius:20px; padding:28px 40px; text-align:center; animation:winnerPop 0.4s cubic-bezier(0.34,1.56,0.64,1); box-shadow:0 0 60px var(--accent-shadow); pointer-events:all; }
+  .winner-msg-name { font-family:'Bebas Neue',sans-serif; font-size:52px; letter-spacing:4px; color:var(--accent); line-height:1; }
+  .winner-msg-sub { font-size:16px; color:var(--text); margin-top:8px; }
+  .winner-msg-close { margin-top:16px; background:var(--accent); color:var(--title-text); border:none; border-radius:10px; padding:10px 28px; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; cursor:pointer; }
+  @keyframes winnerPop { from { transform:scale(0.5); opacity:0; } to { transform:scale(1); opacity:1; } }
+
+  /* ── Leaderboard ── */
+  .leaderboard-row { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:8px; background:var(--surface2); margin-bottom:4px; }
+  .lb-rank { font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--muted); width:24px; text-align:center; }
+  .lb-rank.gold { color:#f59e0b; }
+  .lb-rank.silver { color:#9ca3af; }
+  .lb-rank.bronze { color:#b45309; }
+  .lb-name { flex:1; font-size:13px; font-weight:600; }
+  .lb-count { font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--accent); }
+  .lb-bar-wrap { flex:2; height:4px; background:var(--border); border-radius:4px; overflow:hidden; }
+  .lb-bar { height:100%; background:var(--accent); border-radius:4px; transition:width 0.4s ease; }
+
+  /* ── Animated background particles ── */
+  #bgCanvas { position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.35; }
   .result-label { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:14px; position:relative; }
   .result-name { font-family:'Bebas Neue',sans-serif; font-size:56px; letter-spacing:3px; color:var(--accent); line-height:1; min-height:60px; position:relative; }
   .result-name.rolling { animation:roll 0.08s infinite alternate; color:var(--text); opacity:0.7; }
@@ -303,6 +338,7 @@
 </style>
 </head>
 <body>
+<canvas id="bgCanvas"></canvas>
 
 <!-- ── Music Player ── -->
 <div class="music-player" id="musicPlayer" style="display:none">
@@ -532,6 +568,30 @@
             <input type="range" class="rand-slider" id="winnersSlider" min="1" max="5" value="1" oninput="updateRandSettings()">
             <span class="rand-val" id="winnersVal">1</span>
           </div>
+          <div class="rand-setting-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+            <div class="rand-setting-label">Winner Message<small>Shown when a name is picked</small></div>
+            <input type="text" id="winnerMsgInput" maxlength="60" placeholder="e.g. Congratulations [name]! 🎉"
+              style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:12px;outline:none;"
+              oninput="winnerMsg=this.value;LSSet('winnerMsg',winnerMsg)" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+            <div style="font-size:10px;color:var(--muted)">Use [name] to insert the picked name</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pick History & Leaderboard -->
+      <div class="pick-history" id="pickHistorySection">
+        <div class="pick-history-header">
+          <div style="display:flex;gap:12px;align-items:center">
+            <button onclick="showHistoryTab('history')" id="tabHistory" style="background:none;border:none;cursor:pointer;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:600;color:var(--accent);border-bottom:2px solid var(--accent);padding:0 0 4px 0;">📋 History</button>
+            <button onclick="showHistoryTab('leaderboard')" id="tabLeaderboard" style="background:none;border:none;cursor:pointer;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;padding:0 0 4px 0;">🏆 Leaderboard</button>
+          </div>
+          <button class="pick-history-clear" onclick="clearPickHistory()">Clear</button>
+        </div>
+        <div id="historyPanel">
+          <div class="pick-history-list" id="pickHistoryList"><div style="font-size:12px;color:var(--muted);text-align:center;padding:8px">No picks yet.</div></div>
+        </div>
+        <div id="leaderboardPanel" style="display:none">
+          <div id="leaderboardList"><div style="font-size:12px;color:var(--muted);text-align:center;padding:8px">No picks yet.</div></div>
         </div>
       </div>
     </div>
@@ -644,6 +704,10 @@ let allowRepeats  = LS('allowRepeats','1') === '1';
 let autoRemove    = LS('autoRemove','0') === '1';
 let confettiOn    = LS('confettiOn','1') === '1';
 let winnersCount  = parseInt(LS('winnersCount','1'));
+let winnerMsg     = LS('winnerMsg','Congratulations [name]! 🎉');
+let pickHistory   = LSJ('pickHistory',[]);  // [{name, time}]
+let pickCounts    = LSJ('pickCounts',{});   // {name: count}
+let currentStreak = {name:'', count:0};
 
 const isViewerInSession = () => joinedRoomCode && myRoomRole==='viewer';
 const canEdit      = () => !isViewerInSession() && (isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner');
@@ -663,6 +727,9 @@ function save(){
   LSSet('autoRemove',autoRemove?'1':'0');
   LSSet('confettiOn',confettiOn?'1':'0');
   LSSet('winnersCount',winnersCount);
+  LSSet('winnerMsg',winnerMsg);
+  LSSet('pickHistory',JSON.stringify(pickHistory));
+  LSSet('pickCounts',JSON.stringify(pickCounts));
 }
 
 // ── Randomizer settings ───────────────────────────────────────────────────────
@@ -676,6 +743,129 @@ document.addEventListener('click',e=>{
   }
 });
 let randCollapsed = true;
+
+// ── Pick History & Leaderboard ──────────────────────────────────────────────
+let historyTab = 'history';
+function showHistoryTab(tab){
+  historyTab = tab;
+  const hp = document.getElementById('historyPanel');
+  const lp = document.getElementById('leaderboardPanel');
+  const th = document.getElementById('tabHistory');
+  const tl = document.getElementById('tabLeaderboard');
+  if(!hp) return;
+  hp.style.display = tab==='history' ? '' : 'none';
+  lp.style.display = tab==='leaderboard' ? '' : 'none';
+  th.style.color = tab==='history' ? 'var(--accent)' : 'var(--muted)';
+  th.style.borderBottomColor = tab==='history' ? 'var(--accent)' : 'transparent';
+  tl.style.color = tab==='leaderboard' ? 'var(--accent)' : 'var(--muted)';
+  tl.style.borderBottomColor = tab==='leaderboard' ? 'var(--accent)' : 'transparent';
+  if(tab==='leaderboard') renderLeaderboard();
+}
+
+function renderPickHistory(){
+  const list = document.getElementById('pickHistoryList');
+  if(!list) return;
+  if(pickHistory.length===0){ list.innerHTML='<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px">No picks yet.</div>'; return; }
+  list.innerHTML = pickHistory.map((p,i)=>{
+    const isStreak = currentStreak.name===p.name && currentStreak.count>1 && i===0;
+    const t = new Date(p.time);
+    const timeStr = t.getHours()+':'+String(t.getMinutes()).padStart(2,'0');
+    return `<div class="pick-history-item">
+      <span class="pick-history-name">${esc(p.name)}</span>
+      ${isStreak ? `<span class="pick-history-streak">🔥 x${currentStreak.count}</span>` : ''}
+      <span class="pick-history-num">${timeStr}</span>
+    </div>`;
+  }).join('');
+  renderLeaderboard();
+}
+
+function renderLeaderboard(){
+  const list = document.getElementById('leaderboardList');
+  if(!list) return;
+  const sorted = Object.entries(pickCounts).sort((a,b)=>b[1]-a[1]);
+  if(sorted.length===0){ list.innerHTML='<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px">No picks yet.</div>'; return; }
+  const max = sorted[0][1];
+  const rankClass = i => i===0?'gold':i===1?'silver':i===2?'bronze':'';
+  list.innerHTML = sorted.slice(0,10).map(([name,count],i)=>`
+    <div class="leaderboard-row">
+      <span class="lb-rank ${rankClass(i)}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+      <span class="lb-name">${esc(name)}</span>
+      <div class="lb-bar-wrap"><div class="lb-bar" style="width:${(count/max*100).toFixed(0)}%"></div></div>
+      <span class="lb-count">${count}</span>
+    </div>`).join('');
+}
+
+function clearPickHistory(){
+  if(!confirm('Clear pick history and leaderboard?')) return;
+  pickHistory=[]; pickCounts={}; currentStreak={name:'',count:0};
+  LSSet('pickHistory','[]'); LSSet('pickCounts','{}');
+  renderPickHistory();
+}
+
+// ── Winner Message ───────────────────────────────────────────────────────────
+function showWinnerMessage(name){
+  if(!winnerMsg) return;
+  const msg = winnerMsg.replace(/\[name\]/gi, name);
+  const overlay = document.createElement('div');
+  overlay.className = 'winner-overlay';
+  overlay.innerHTML = `<div class="winner-msg-box">
+    <div class="winner-msg-name">${esc(name)}</div>
+    <div class="winner-msg-sub">${esc(msg)}</div>
+    <button class="winner-msg-close" onclick="this.closest('.winner-overlay').remove()">CONTINUE</button>
+  </div>`;
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+  setTimeout(()=>{ if(overlay.parentNode) overlay.remove(); }, 5000);
+}
+
+// ── Animated Background Particles ───────────────────────────────────────────
+(function initBgParticles(){
+  const canvas = document.getElementById('bgCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let W, H, particles=[];
+  function resize(){ W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+  for(let i=0;i<55;i++) particles.push({
+    x:Math.random()*window.innerWidth, y:Math.random()*window.innerHeight,
+    r:Math.random()*1.8+0.4, vx:(Math.random()-0.5)*0.3, vy:(Math.random()-0.5)*0.3,
+    o:Math.random()*0.5+0.2
+  });
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#f5c842';
+    particles.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0) p.x=W; if(p.x>W) p.x=0;
+      if(p.y<0) p.y=H; if(p.y>H) p.y=0;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=accent;
+      ctx.globalAlpha=p.o;
+      ctx.fill();
+    });
+    // Draw connecting lines between close particles
+    ctx.globalAlpha=0.08;
+    for(let i=0;i<particles.length;i++){
+      for(let j=i+1;j<particles.length;j++){
+        const dx=particles[i].x-particles[j].x, dy=particles[i].y-particles[j].y;
+        const dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist<120){
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x,particles[i].y);
+          ctx.lineTo(particles[j].x,particles[j].y);
+          ctx.strokeStyle=accent;
+          ctx.lineWidth=0.5;
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.globalAlpha=1;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
 
 function launchConfetti(){
   const colors=['var(--accent)','#ff5c5c','#a78bfa','#34d399','#60a5fa'];
@@ -722,6 +912,7 @@ function initRandSettings(){
   document.getElementById('confettiOn').checked = confettiOn;
   document.getElementById('winnersSlider').value = winnersCount;
   document.getElementById('winnersVal').textContent = winnersCount;
+  document.getElementById('winnerMsgInput').value = winnerMsg;
   document.getElementById('speedVal').textContent = rollSpeed+'ms';
   document.getElementById('ticksVal').textContent = rollTicks;
   document.getElementById('excludeRow').style.display = 'none';
@@ -1412,7 +1603,7 @@ async function submitJoin(){
 }
 function enterApp(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
 function skipJoin(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
-function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();render();renderSessionBar();updateMusicVisibility();updateSliderFill(document.getElementById('volumeSlider'));}
+function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();render();renderSessionBar();updateMusicVisibility();updateSliderFill(document.getElementById('volumeSlider'));renderPickHistory();}
 function updateMusicVisibility(){
   const mp=document.getElementById('musicPlayer');
   if(!mp)return;
