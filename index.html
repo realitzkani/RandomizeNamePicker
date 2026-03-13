@@ -83,6 +83,12 @@
   .playlist-item.active { color:var(--accent); background:var(--accent-dim); }
   .playlist-item .pi-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .playlist-item .pi-remove { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:0; opacity:0; transition:opacity 0.15s; }
+  .link-playlist-item { display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:11px; color:var(--muted); background:var(--surface2); margin-bottom:3px; transition:background 0.15s; }
+  .link-playlist-item:hover { background:var(--border); color:var(--text); }
+  .link-playlist-item .lpi-icon { font-size:13px; flex-shrink:0; }
+  .link-playlist-item .lpi-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .link-playlist-item .lpi-rm { background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; opacity:0; transition:opacity 0.15s; padding:0; }
+  .link-playlist-item:hover .lpi-rm { opacity:1; }
   .playlist-item:hover .pi-remove { opacity:1; }
   /* Collapsed state — show track + progress + mini controls */
   .music-player { transition:max-height 0.35s cubic-bezier(0.4,0,0.2,1), padding 0.3s; max-height:600px; overflow:hidden; }
@@ -376,9 +382,11 @@
   </div>
   <div id="musicLinkSection" style="display:none">
     <div class="music-link-row">
-      <input class="music-link-input" id="musicLinkInput" type="text" placeholder="YouTube, Spotify, Apple Music URL…" onkeydown="if(event.key==='Enter')embedLink()">
-      <button class="music-link-btn" onclick="embedLink()">Load</button>
+      <input class="music-link-input" id="musicLinkInput" type="text" placeholder="YouTube / Spotify / Apple Music URL…" onkeydown="if(event.key==='Enter')addLinkPlaylist()">
+      <button class="music-link-btn" onclick="addLinkPlaylist()">Add</button>
     </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:4px;margin-bottom:6px">Paste a playlist, album, or track link</div>
+    <div class="music-playlist" id="linkPlaylistSaved" style="max-height:100px;"></div>
     <div class="music-embed" id="musicEmbed"></div>
   </div>
 </div>
@@ -585,7 +593,7 @@
             <button onclick="showHistoryTab('history')" id="tabHistory" style="background:none;border:none;cursor:pointer;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:600;color:var(--accent);border-bottom:2px solid var(--accent);padding:0 0 4px 0;">📋 History</button>
             <button onclick="showHistoryTab('leaderboard')" id="tabLeaderboard" style="background:none;border:none;cursor:pointer;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;padding:0 0 4px 0;">🏆 Leaderboard</button>
           </div>
-          <button class="pick-history-clear" onclick="clearPickHistory()">Clear</button>
+          <button class="pick-history-clear" id="pickHistoryClearBtn" onclick="clearPickHistory()" style="display:none">Clear</button>
         </div>
         <div id="historyPanel">
           <div class="pick-history-list" id="pickHistoryList"><div style="font-size:12px;color:var(--muted);text-align:center;padding:8px">No picks yet.</div></div>
@@ -1326,6 +1334,8 @@ function updateSidePanel(){
 
   const isViewer   = joinedRoomCode && myRoomRole==='viewer';
   const canSeeGear = isOwner && !joinedRoomCode;
+  const clearBtn = document.getElementById('pickHistoryClearBtn');
+  if(clearBtn) clearBtn.style.display = isOwner ? 'inline-block' : 'none';
   const inSession  = !!(activeRoomCode || joinedRoomCode);
 
   // Hide pick box for viewers in a session
@@ -1603,7 +1613,7 @@ async function submitJoin(){
 }
 function enterApp(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
 function skipJoin(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
-function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();render();renderSessionBar();updateMusicVisibility();updateSliderFill(document.getElementById('volumeSlider'));renderPickHistory();}
+function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();render();renderSessionBar();updateMusicVisibility();updateSliderFill(document.getElementById('volumeSlider'));renderPickHistory();renderLinkPlaylists();}
 function updateMusicVisibility(){
   const mp=document.getElementById('musicPlayer');
   if(!mp)return;
@@ -1704,10 +1714,58 @@ function switchMusicTab(tab){
   document.getElementById('tabLink').classList.toggle('active',tab==='link');
 }
 
-function embedLink(){
-  const raw=document.getElementById('musicLinkInput').value.trim();
-  if(!raw)return;
+// ── Saved link playlists ────────────────────────────────────────────────────
+let linkPlaylists = LSJ('linkPlaylists', []);
+
+function getLinkIcon(url){
+  if(url.includes('spotify')) return '🎵';
+  if(url.includes('youtube')||url.includes('youtu.be')) return '▶️';
+  if(url.includes('apple')) return '🎶';
+  return '🔗';
+}
+function getLinkName(url){
+  try {
+    const u = new URL(url);
+    const parts = u.pathname.split('/').filter(Boolean);
+    return parts[parts.length-1].replace(/-/g,' ').slice(0,30) || u.hostname;
+  } catch { return url.slice(0,30); }
+}
+
+function addLinkPlaylist(){
+  const inp = document.getElementById('musicLinkInput');
+  const raw = inp.value.trim();
+  if(!raw) return;
+  // Avoid duplicates
+  if(!linkPlaylists.find(p=>p.url===raw)){
+    linkPlaylists.push({url:raw, name:getLinkName(raw), icon:getLinkIcon(raw)});
+    LSSet('linkPlaylists', JSON.stringify(linkPlaylists));
+  }
+  inp.value='';
+  renderLinkPlaylists();
+  loadLinkEmbed(raw);
+}
+
+function renderLinkPlaylists(){
+  const list = document.getElementById('linkPlaylistSaved');
+  if(!list) return;
+  if(linkPlaylists.length===0){ list.innerHTML=''; return; }
+  list.innerHTML = linkPlaylists.map((p,i)=>`
+    <div class="link-playlist-item" onclick="loadLinkEmbed('${p.url.replace(/'/g,"\'")}')">
+      <span class="lpi-icon">${p.icon}</span>
+      <span class="lpi-name">${esc(p.name)}</span>
+      <button class="lpi-rm" onclick="event.stopPropagation();removeLinkPlaylist(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeLinkPlaylist(i){
+  linkPlaylists.splice(i,1);
+  LSSet('linkPlaylists', JSON.stringify(linkPlaylists));
+  renderLinkPlaylists();
+}
+
+function loadLinkEmbed(raw){
   const embed=document.getElementById('musicEmbed');
+  if(!embed||!raw) return;
   let iframeSrc='';
 
   // YouTube
@@ -1742,6 +1800,7 @@ let myRoomRole     = 'viewer';
 function getRoomCode() { return activeRoomCode || joinedRoomCode || null; }
 
 async function startSession(){
+  sessionBarCollapsed = false;
   if(activeRoomCode){ alert('You already have an active session!'); return; }
   try {
     const data = await api('POST','/rooms',{ names });
@@ -1891,6 +1950,7 @@ function renderSessionBar(room){
   if(isRoomOwner && activeRoomCode){
     bar.style.display='flex';
     bar.className='session-bar active-session';
+    bar.classList.toggle('session-bar-collapsed', sessionBarCollapsed);
     const viewerLink = 'https://realitzkani.github.io/RandomizeNamePicker/?session='+activeRoomCode;
     const adminLink  = 'https://realitzkani.github.io/RandomizeNamePicker/?session='+activeRoomCode+'&adminrequest';
     const memberCount = room ? room.member_count : '…';
@@ -1923,6 +1983,7 @@ function renderSessionBar(room){
   } else if(joinedRoomCode){
     bar.style.display='flex';
     bar.className='session-bar viewer-session';
+    bar.classList.toggle('session-bar-collapsed', sessionBarCollapsed);
     const members = room ? room.members : [];
     const memberCount = room ? room.member_count : '…';
     bar.innerHTML=`
