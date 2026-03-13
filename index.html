@@ -44,13 +44,25 @@
   .music-toggle:hover { color:var(--text); }
   .music-track-name { font-size:12px; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px; max-width:100%; }
   .music-progress-row { display:flex; align-items:center; gap:6px; margin-bottom:8px; }
-  .music-progress { flex:1; accent-color:var(--accent); cursor:pointer; height:3px; }
+  .music-progress {
+    flex:1; cursor:pointer; height:4px; border-radius:4px;
+    -webkit-appearance:none; appearance:none; outline:none; border:none;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) 0%, var(--border) 0%, var(--border) 100%);
+  }
+  .music-progress::-webkit-slider-thumb { -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:var(--accent); cursor:pointer; box-shadow:0 0 0 3px var(--accent-dim); }
+  .music-progress::-moz-range-thumb { width:12px; height:12px; border-radius:50%; background:var(--accent); cursor:pointer; border:none; }
   .music-time { font-size:10px; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums; }
   .music-controls { display:flex; align-items:center; gap:6px; }
   .music-btn { background:none; border:none; color:var(--text); cursor:pointer; font-size:18px; padding:2px 4px; transition:color 0.2s; line-height:1; }
   .music-btn:hover { color:var(--accent); }
   .music-btn.play-btn { font-size:22px; }
-  .music-vol { flex:1; accent-color:var(--accent); cursor:pointer; }
+  .music-vol {
+    flex:1; cursor:pointer; height:4px; border-radius:4px;
+    -webkit-appearance:none; appearance:none; outline:none; border:none;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) 70%, var(--border) 70%, var(--border) 100%);
+  }
+  .music-vol::-webkit-slider-thumb { -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:var(--accent); cursor:pointer; box-shadow:0 0 0 3px var(--accent-dim); }
+  .music-vol::-moz-range-thumb { width:12px; height:12px; border-radius:50%; background:var(--accent); cursor:pointer; border:none; }
   .music-upload { display:none; }
   .music-section-tabs { display:flex; gap:4px; margin-top:8px; margin-bottom:6px; }
   .music-tab { flex:1; padding:5px; border:1px solid var(--border); border-radius:6px; background:none; color:var(--muted); font-size:11px; cursor:pointer; transition:background 0.15s,color 0.15s; }
@@ -1400,7 +1412,7 @@ async function submitJoin(){
 }
 function enterApp(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
 function skipJoin(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
-function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();render();renderSessionBar();updateMusicVisibility();}
+function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();render();renderSessionBar();updateMusicVisibility();updateSliderFill(document.getElementById('volumeSlider'));}
 function updateMusicVisibility(){
   const mp=document.getElementById('musicPlayer');
   if(!mp)return;
@@ -1420,7 +1432,9 @@ function fmt(s){if(isNaN(s)||!isFinite(s))return'0:00';const m=Math.floor(s/60),
 function updateProgress(){
   if(!audio.duration)return;
   const pct=(audio.currentTime/audio.duration)*100;
-  document.getElementById('progressBar').value=pct;
+  const pb=document.getElementById('progressBar');
+  pb.value=pct;
+  updateSliderFill(pb);
   document.getElementById('musicTime').textContent=fmt(audio.currentTime)+' / '+fmt(audio.duration);
 }
 audio.addEventListener('timeupdate',updateProgress);
@@ -1466,7 +1480,8 @@ function togglePlay(){
 
 function prevTrack(){if(playlist.length===0)return;loadTrack((trackIndex-1+playlist.length)%playlist.length);if(isPlaying)audio.play();}
 function nextTrack(){if(playlist.length===0)return;loadTrack((trackIndex+1)%playlist.length);if(isPlaying)audio.play();}
-function setVolume(v){audio.volume=parseFloat(v);}
+function setVolume(v){
+  updateSliderFill(document.getElementById('volumeSlider'));audio.volume=parseFloat(v);}
 audio.addEventListener('ended',nextTrack);
 audio.volume=0.7;
 
