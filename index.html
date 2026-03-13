@@ -469,9 +469,9 @@
       </div>
       <!-- Inline randomizer settings — owner/admin only -->
       <div id="inlineRandSettings" style="display:none;width:100%;margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">
-        <button onclick="toggleInlineRand()" style="background:none;border:none;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:space-between;padding:0 0 0 0;" id="randToggleBtn">
+        <button onclick="toggleInlineRand()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 12px;" id="randToggleBtn">
           <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:600;">&#9881; Randomizer Settings</span>
-          <span id="randToggleArrow" style="font-size:11px;color:var(--muted);">&#9650;</span>
+          <span id="randToggleArrow" style="font-size:11px;color:var(--muted);transition:transform 0.2s;">&#9650; Minimize</span>
         </button>
         <div id="randSettingsBody" style="margin-top:12px;">
           <div class="rand-setting-row">
@@ -637,7 +637,7 @@ function toggleInlineRand(){
   const body = document.getElementById('randSettingsBody');
   const arrow = document.getElementById('randToggleArrow');
   if(body) body.style.display = randCollapsed ? 'none' : 'block';
-  if(arrow) arrow.innerHTML = randCollapsed ? '&#9660;' : '&#9650;';
+  if(arrow) arrow.innerHTML = randCollapsed ? '&#9660; Expand' : '&#9650; Minimize';
 }
 function updateRandSettings(){
   rollSpeed = parseInt(document.getElementById('speedSlider').value);
