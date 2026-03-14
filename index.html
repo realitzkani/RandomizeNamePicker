@@ -487,7 +487,7 @@
   </div>
 </div>
 <div id="versionBadgeWrap" style="display:none;position:fixed;top:72px;right:16px;z-index:49;">
-  <span class="version-badge" onclick="openChangelog()" style="font-size:9px;padding:2px 9px;gap:4px"><span class="version-dot" style="width:5px;height:5px"></span>BETA 1.0.6</span>
+  <span class="version-badge" onclick="openChangelog()" style="font-size:9px;padding:2px 9px;gap:4px"><span class="version-dot" style="width:5px;height:5px"></span>BETA 1.0.7</span>
 </div>
 <div class="account-dropdown" id="accountDropdown">
   <div class="dropdown-header">
@@ -512,7 +512,7 @@
     <div class="screen-icon">🎲</div>
     <h2 style="color:var(--accent)">RANDOM NAME PICKER</h2>
     <div style="display:flex;justify-content:center;margin-bottom:10px">
-      <span class="version-badge" id="authVersionBadge" onclick="toggleAuthChangelog()"><span class="version-dot"></span>BETA 1.0.6 — What's New</span>
+      <span class="version-badge" id="authVersionBadge" onclick="toggleAuthChangelog()"><span class="version-dot"></span>BETA 1.0.7 — What's New</span>
     </div>
     <p>Create an account or log in. Your role and history are saved across all devices.</p>
     <div class="screen-tab-row">
@@ -561,7 +561,7 @@
     </div>
     <!-- Beta 1.0.6 -->
     <div class="changelog-version" style="margin-bottom:12px">
-      <span class="changelog-version-tag">BETA 1.0.6</span>
+      <span class="changelog-version-tag">BETA 1.0.7</span>
       <span class="changelog-version-label">Current</span>
       <span class="changelog-date">Mar 2026</span>
     </div>
@@ -728,6 +728,18 @@
 
   <!-- Session Bar -->
   <div id="sessionBar" style="display:none"></div>
+  <!-- Lobby Join Row — for non-owners not in a session -->
+  <div id="lobbyJoinRow" style="display:none;margin-bottom:14px;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:600;flex-shrink:0;">🔗 Join a Session</span>
+      <input type="text" id="lobbyJoinInput" maxlength="6" placeholder="Enter code…"
+        style="flex:1;min-width:100px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:4px;text-align:center;outline:none;"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter')lobbyJoin()"
+        onfocus="this.style.borderColor='var(--admin)'" onblur="this.style.borderColor='var(--border)'">
+      <button onclick="lobbyJoin()" style="background:var(--admin);color:#0d0d0f;border:none;border-radius:8px;padding:9px 20px;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;cursor:pointer;flex-shrink:0;">JOIN</button>
+    </div>
+  </div>
 
   <div id="resultBoxWrap">
     <div class="result-box">
@@ -895,6 +907,22 @@
       onkeydown="if(event.key==='Enter')joinByCode()">
     <div id="joinCodeErr" style="font-size:11px;color:var(--accent2);min-height:14px;margin-bottom:6px;"></div>
     <button class="side-join-btn" onclick="joinByCode()">JOIN</button>
+  </div>
+
+  <!-- Session Chat Card — shows when in any session -->
+  <div class="side-card" id="sideChatCard" style="display:none;padding:0;overflow:hidden;border:1px solid var(--border);">
+    <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleSideChat()">
+      <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:600;">💬 Chat</span>
+      <span id="sideChatArrow" style="font-size:11px;color:var(--muted);">▼</span>
+    </div>
+    <div id="sideChatBody" style="display:none">
+      <div class="chat-messages" id="sideChatMessages" style="max-height:180px;padding:10px;"></div>
+      <div style="padding:0 8px 8px;display:flex;gap:6px;">
+        <input class="chat-input" id="sideChatInput" placeholder="Say something…" maxlength="200"
+          onkeydown="if(event.key==='Enter')sendSideChat()" style="font-size:12px;">
+        <button class="chat-send-btn" onclick="sendSideChat()">➤</button>
+      </div>
+    </div>
   </div>
 
 <!-- gear card removed — settings now inline -->
@@ -1100,6 +1128,40 @@ function deleteGroup(g){ delete groups[g]; if(activeGroup===g)activeGroup=null; 
 function toggleNameInGroup(g,n){ if(!groups[g])groups[g]=[]; const idx=groups[g].indexOf(n); if(idx>-1)groups[g].splice(idx,1); else groups[g].push(n); LSSet('groups',JSON.stringify(groups)); }
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
+let sideChatOpen = false;
+function toggleSideChat(){
+  sideChatOpen=!sideChatOpen;
+  const body=document.getElementById('sideChatBody');
+  const arrow=document.getElementById('sideChatArrow');
+  if(body) body.style.display=sideChatOpen?'block':'none';
+  if(arrow) arrow.textContent=sideChatOpen?'▲':'▼';
+  if(sideChatOpen) renderSideChatMessages();
+}
+function sendSideChat(){
+  const inp=document.getElementById('sideChatInput');
+  const text=inp?.value.trim();
+  if(!text||!currentUser)return;
+  inp.value='';
+  const code=getRoomCode();
+  if(!code)return;
+  api('POST','/rooms/'+code+'/chat',{message:text}).then(()=>pollChat()).catch(e=>{
+    if(e.message?.includes('muted')) showSuccessToast('Muted','You have been muted');
+  });
+}
+function renderSideChatMessages(){
+  const list=document.getElementById('sideChatMessages');
+  if(!list||!sideChatOpen)return;
+  const roleColor=r=>r==='owner'?'var(--accent)':r==='admin'?'var(--admin)':'var(--muted)';
+  const canMute=isOwner||isAdmin||myRoomRole==='admin'||myRoomRole==='owner';
+  list.innerHTML=chatMessages.length===0?'<div class="chat-msg cm-system">No messages yet.</div>':chatMessages.map(m=>{
+    const isMuted=serverMutes.includes(m.user);
+    const isMe=m.user===currentUser?.username;
+    const muteBtn=canMute&&!isMe?`<button onclick="toggleMuteUser('${m.user.replace(/'/g,"\\'")}',${serverMutes.includes(m.user)?'false':'true'})" style="background:none;border:none;font-size:10px;color:var(--muted);cursor:pointer;margin-left:4px">${serverMutes.includes(m.user)?'🔊':'🔇'}</button>`:'';
+    return `<div class="chat-msg${isMuted?' muted-msg':''}"><span class="cm-user" style="color:${roleColor(m.role)}">${esc(m.user)}</span>${esc(m.text)}${muteBtn}</div>`;
+  }).join('');
+  list.scrollTop=list.scrollHeight;
+}
+
 function toggleChatSection(){
   const body=document.getElementById('chatBody');
   const arrow=document.getElementById('chatToggleArrow');
@@ -1216,7 +1278,7 @@ function openChangelog(){
 
       <div class="changelog-section">
         <div class="changelog-version">
-          <span class="changelog-version-tag">BETA 1.0.6</span>
+          <span class="changelog-version-tag">BETA 1.0.7</span>
           <span class="changelog-version-label">Current</span>
           <span class="changelog-date">March 2026</span>
         </div>
@@ -1837,8 +1899,12 @@ function updateSidePanel(){
   if(inlineRand) inlineRand.style.display = canSeeGear ? 'block' : 'none';
 
   // Side panel — only show if there are relevant cards
-  const showSidePanel = (isOwner && activeRoomCode) || (!isOwner && !inSession);
+  const inAnySession = !!(activeRoomCode || joinedRoomCode);
+  const showSidePanel = (isOwner && activeRoomCode) || (!isOwner && !inSession) || inAnySession;
   sp.style.display = showSidePanel ? 'flex' : 'none';
+  // Side chat card
+  const scc = document.getElementById('sideChatCard');
+  if(scc) scc.style.display = inAnySession ? 'block' : 'none';
 
   // Room code card — only for owner while session active
   if(rcCard){
@@ -1850,6 +1916,9 @@ function updateSidePanel(){
 
   // Join card — non-owners not in any session
   if(joinCard) joinCard.style.display = (!isOwner && !inSession) ? 'block' : 'none';
+  // Lobby join row
+  const ljr = document.getElementById('lobbyJoinRow');
+  if(ljr) ljr.style.display = (!isOwner && !inSession) ? 'block' : 'none';
 }
 
 // ── Name actions ──────────────────────────────────────────────────────────────
@@ -2196,13 +2265,13 @@ function setPlayBtns(playing){
 }
 
 function addTracks(input){
-  const files=Array.from(input.files);
-  let loaded=0;
+  const MAX=5;
+  const files=Array.from(input.files).slice(0, MAX - playlist.length);
+  if(playlist.length>=MAX){ showSuccessToast('Max reached','Only 5 tracks allowed'); input.value=''; return; }
   files.forEach(file=>{
     const reader=new FileReader();
     reader.onload=e=>{
       playlist.push({name:file.name.replace(/\.[^.]+$/,''), dataUrl:e.target.result});
-      loaded++;
       LSSet('musicPlaylistData',JSON.stringify(playlist));
       renderPlaylist();
       if(playlist.length===1) loadTrack(0);
@@ -2409,6 +2478,11 @@ async function joinRoom(code, asAdmin=false, adminPw=''){
     }
     joinedRoomCode = code;
     myRoomRole = data.role;
+    // Fetch room immediately to get owner colors before first render
+    try {
+      const roomData = await api('GET','/rooms/'+code);
+      if(roomData.title_color) applyAccent(roomData.title_color, roomData.title_text_color||'#000');
+    } catch{}
     startRoomPoll();
     document.getElementById('joinScreen').style.display='none';
     history.replaceState(null,'',window.location.pathname);
@@ -2446,6 +2520,7 @@ async function pollChat(){
         if(m.id>lastChatId) lastChatId=m.id;
       });
       renderChatMessages();
+      renderSideChatMessages();
       if(!chatOpen) chatUnread+=data.messages.length;
     }
     // Update mute buttons without re-rendering if no new messages
@@ -2527,6 +2602,9 @@ async function pushRoomPick(picked){
 
 let currentRoomAdmins = [];
 function renderSessionBar(room){
+  // Don't re-render if chat input is focused (would lose typing)
+  const focused = document.activeElement;
+  const chatInputFocused = focused && focused.id === 'chatInput';
   if(room && room.members) currentRoomAdmins = room.members.filter(m=>m.role==='admin').map(m=>m.username);
   const bar = document.getElementById('sessionBar');
   const startBtn = document.getElementById('startSessionBtn');
@@ -2572,6 +2650,8 @@ function renderSessionBar(room){
       </div>
     `;
     if(startBtn) startBtn.style.display='none';
+    // Restore focus to chat input if it was focused
+    if(chatInputFocused){ const ci=document.getElementById('chatInput'); if(ci) ci.focus(); }
     // Restore chat open state
     const cb=document.getElementById('chatBody');
     const ca=document.getElementById('chatToggleArrow');
@@ -2627,6 +2707,8 @@ function renderSessionBar(room){
       </div>
     `;
     if(startBtn) startBtn.style.display='none';
+    // Restore focus
+    if(chatInputFocused){ const vci=document.getElementById('chatInput'); if(vci) vci.focus(); }
     // Restore chat open state
     const vcb=document.getElementById('chatBody');
     const vca=document.getElementById('chatToggleArrow');
@@ -2694,6 +2776,15 @@ async function kickMember(roomCode, username){
     await api('POST','/rooms/'+roomCode+'/kick',{username});
     pollRoom(); // refresh member list immediately
   } catch(e){ alert('Could not kick: '+e.message); }
+}
+
+async function lobbyJoin(){
+  const inp = document.getElementById('lobbyJoinInput');
+  if(!inp) return;
+  const code = inp.value.trim().toUpperCase();
+  if(code.length !== 6){ inp.style.borderColor='var(--accent2)'; setTimeout(()=>inp.style.borderColor='var(--border)',1200); return; }
+  inp.value='';
+  await checkSessionFlow(code);
 }
 
 async function joinByCode(){
