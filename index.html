@@ -1889,6 +1889,7 @@ function pickName(){
       el.textContent=picked;
       el.classList.remove('rolling');
       rolling=false;
+      lastWinners=[picked];
       if(!allowRepeats){recentPicks.push(picked);if(recentPicks.length>Math.floor(names.length/2))recentPicks.shift();}
       pushRoomPick(picked);
       render();
