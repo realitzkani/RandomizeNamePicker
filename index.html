@@ -409,6 +409,21 @@
   .group-filter-btn { font-size:11px; background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:4px 12px; cursor:pointer; color:var(--muted); transition:all 0.15s; }
   .group-filter-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
 
+  /* Bottom Chat Panel */
+  .bottom-chat-panel { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:min(560px,90vw); z-index:45; background:var(--surface); border:1px solid var(--border); border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -4px 24px #00000055; }
+  .bottom-chat-header { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; cursor:pointer; border-bottom:1px solid var(--border); }
+  .bottom-chat-header-title { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:8px; }
+  .bottom-chat-unread { background:var(--accent); color:#000; border-radius:20px; padding:1px 7px; font-size:10px; font-weight:700; }
+  .bottom-chat-body { display:none; flex-direction:column; }
+  .bottom-chat-body.open { display:flex; }
+  .bottom-chat-messages { max-height:200px; overflow-y:auto; padding:10px 16px; display:flex; flex-direction:column; gap:5px; }
+  .bottom-chat-messages::-webkit-scrollbar { width:3px; }
+  .bottom-chat-messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+  .bottom-chat-input-row { display:flex; gap:8px; padding:10px 16px 14px; border-top:1px solid var(--border); }
+  .bottom-chat-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 14px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; outline:none; }
+  .bottom-chat-input:focus { border-color:var(--accent); }
+  .bottom-chat-send { background:var(--accent); color:#000; border:none; border-radius:10px; padding:10px 18px; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px; cursor:pointer; flex-shrink:0; }
+
   /* Chat (inside session bar) */
   .session-chat-section { border-top:1px solid var(--border); margin-top:10px; padding-top:10px; }
   .session-chat-toggle { background:none; border:none; color:var(--muted); cursor:pointer; font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:600; display:flex; align-items:center; gap:6px; padding:0; margin-bottom:6px; width:100%; justify-content:space-between; }
@@ -883,6 +898,27 @@
 </footer>
 
 
+<!-- ── Bottom Chat Panel ── -->
+<div class="bottom-chat-panel" id="bottomChatPanel" style="display:none">
+  <div class="bottom-chat-header" onclick="toggleBottomChat()">
+    <span class="bottom-chat-header-title">
+      💬 Session Chat
+      <span id="bottomChatUnread" class="bottom-chat-unread" style="display:none">0</span>
+    </span>
+    <span id="bottomChatArrow" style="font-size:12px;color:var(--muted)">▲ Open</span>
+  </div>
+  <div class="bottom-chat-body" id="bottomChatBody">
+    <div class="bottom-chat-messages" id="bottomChatMessages">
+      <div class="chat-msg cm-system">Chat is live — say something!</div>
+    </div>
+    <div class="bottom-chat-input-row">
+      <input class="bottom-chat-input" id="bottomChatInput" placeholder="Type a message…" maxlength="200"
+        onkeydown="if(event.key==='Enter')sendBottomChat()">
+      <button class="bottom-chat-send" onclick="sendBottomChat()">SEND</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal"><div id="modalContent"></div></div>
 </div>
@@ -908,22 +944,6 @@
       onkeydown="if(event.key==='Enter')joinByCode()">
     <div id="joinCodeErr" style="font-size:11px;color:var(--accent2);min-height:14px;margin-bottom:6px;"></div>
     <button class="side-join-btn" onclick="joinByCode()">JOIN</button>
-  </div>
-
-  <!-- Session Chat Card — shows when in any session -->
-  <div class="side-card" id="sideChatCard" style="display:none;padding:0;overflow:hidden;border:1px solid var(--border);">
-    <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleSideChat()">
-      <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:600;">💬 Chat</span>
-      <span id="sideChatArrow" style="font-size:11px;color:var(--muted);">▲</span>
-    </div>
-    <div id="sideChatBody" style="display:block">
-      <div class="chat-messages" id="sideChatMessages" style="max-height:180px;padding:10px;"></div>
-      <div style="padding:0 8px 8px;display:flex;gap:6px;">
-        <input class="chat-input" id="sideChatInput" placeholder="Say something…" maxlength="200"
-          onkeydown="if(event.key==='Enter')sendSideChat()" style="font-size:12px;">
-        <button class="chat-send-btn" onclick="sendSideChat()">➤</button>
-      </div>
-    </div>
   </div>
 
 <!-- gear card removed — settings now inline -->
@@ -1065,22 +1085,30 @@ function submitName(){
   pendingNames.push({name, submitter: currentUser?currentUser.username:'Viewer'});
   inp.value='';
   showSuccessToast('Submitted!','Waiting for owner approval');
+  pushPendingToRoom();
   render();
+}
+
+async function pushPendingToRoom(){
+  const code = getRoomCode();
+  if(!code) return;
+  try { await api('PUT','/rooms/'+code,{ pending_names: pendingNames }); } catch {}
 }
 
 function renderPendingNames(){
   const list=document.getElementById('pendingNamesList');
   if(!list)return;
+  const canApprove = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
   list.innerHTML=pendingNames.map((p,i)=>`
     <div class="pending-name-item">
       <span class="pni-name">${esc(p.name)}</span>
       <span class="pni-sub">from ${esc(p.submitter)}</span>
-      <button onclick="approvePending(${i})" style="background:var(--admin);color:#0d0d0f;border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;margin-right:4px">✓</button>
-      <button onclick="rejectPending(${i})" style="background:none;border:1px solid var(--accent2);color:var(--accent2);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">✕</button>
+      ${canApprove ? `<button onclick="approvePending(${i})" style="background:var(--admin);color:#0d0d0f;border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;margin-right:4px">✓</button>
+      <button onclick="rejectPending(${i})" style="background:none;border:1px solid var(--accent2);color:var(--accent2);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">✕</button>` : '<span style="font-size:10px;color:var(--muted)">Pending…</span>'}
     </div>`).join('');
 }
-function approvePending(i){ names.push(pendingNames[i].name); pendingNames.splice(i,1); save(); pushRoomNames(); render(); }
-function rejectPending(i){ pendingNames.splice(i,1); render(); }
+function approvePending(i){ names.push(pendingNames[i].name); pendingNames.splice(i,1); save(); pushRoomNames(); pushPendingToRoom(); render(); }
+function rejectPending(i){ pendingNames.splice(i,1); pushPendingToRoom(); render(); }
 
 // ── Groups ────────────────────────────────────────────────────────────────────
 function renderGroupFilterBar(){
@@ -1858,7 +1886,7 @@ function render(){
   if(submitRowE) submitRowE.style.display = (joinedRoomCode && myRoomRole==='viewer') ? 'block' : 'none';
   const canManagePendingE = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
   const pendSecE = document.getElementById('pendingNamesSection');
-  if(pendSecE){ pendSecE.style.display = (canManagePendingE && pendingNames.length>0) ? 'block' : 'none'; renderPendingNames(); }
+  if(pendSecE){ pendSecE.style.display = pendingNames.length>0 ? 'block' : 'none'; renderPendingNames(); }
   const list=document.getElementById('nameList');
   if(names.length===0){list.innerHTML='<div class="empty-state">No names yet. Add some above!</div>';updatePill();return;}
   list.innerHTML='';
@@ -1917,8 +1945,9 @@ function updateSidePanel(){
   const showSidePanel = inAnySession || (!isOwner && !inSession);
   sp.style.display = showSidePanel ? 'flex' : 'none';
   // Side chat card
-  const scc = document.getElementById('sideChatCard');
-  if(scc) scc.style.display = inAnySession ? 'block' : 'none';
+  // Bottom chat panel
+  const bcp = document.getElementById('bottomChatPanel');
+  if(bcp) bcp.style.display = inAnySession ? 'block' : 'none';
 
   // Room code card — only for owner while session active
   if(rcCard){
@@ -2564,6 +2593,11 @@ async function pollRoom(){
         }
       }
       names = room.names;
+      // Sync pending names submitted by viewers
+      if(room.pending_names && JSON.stringify(room.pending_names) !== JSON.stringify(pendingNames)){
+        pendingNames = room.pending_names.filter(p=>!names.some(n=>n.toLowerCase()===p.name.toLowerCase()));
+        render();
+      }
       if(room.last_pick && room.last_pick !== lastPick){
         lastPick = room.last_pick;
         document.getElementById('resultName').textContent = room.last_pick;
@@ -2572,6 +2606,10 @@ async function pollRoom(){
       // Sync owner's accent colors
       if(room.title_color) applyAccent(room.title_color, room.title_text_color||'#000');
       render();
+    }
+    // Sync pending names for owner from room data
+    if(isRoomOwner && room.pending_names){
+      pendingNames = room.pending_names.filter(p=>!names.some(n=>n.toLowerCase()===p.name.toLowerCase()));
     }
     renderSessionBar(room);
     // Detect new joiners and show toast
