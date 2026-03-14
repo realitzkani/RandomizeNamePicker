@@ -191,7 +191,8 @@
   .side-join-btn:hover { opacity:0.85; }
   .side-gear-btn { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px; font-size:22px; cursor:pointer; transition:background 0.2s; line-height:1; }
   .side-gear-btn:hover { background:var(--border); }
-  @media (max-width: 900px) { .side-panel { display:none; } }
+  @media (max-width: 900px) { .side-panel { width:160px; } }
+  @media (max-width: 600px) { .side-panel { display:none !important; } }
   .result-glow { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%,var(--accent-dim) 0%,transparent 70%); pointer-events:none; }
 
   /* ── Pick History ── */
@@ -1913,7 +1914,7 @@ function updateSidePanel(){
 
   // Side panel — only show if there are relevant cards
   const inAnySession = !!(activeRoomCode || joinedRoomCode);
-  const showSidePanel = (isOwner && activeRoomCode) || (!isOwner && !inSession) || inAnySession;
+  const showSidePanel = inAnySession || (!isOwner && !inSession);
   sp.style.display = showSidePanel ? 'flex' : 'none';
   // Side chat card
   const scc = document.getElementById('sideChatCard');
