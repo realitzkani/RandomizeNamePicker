@@ -872,11 +872,8 @@
         <input class="submit-name-input" id="submitNameInput" placeholder="Enter your name…" maxlength="40" onkeydown="if(event.key==='Enter')submitName()">
         <button class="submit-name-btn" onclick="submitName()">SUBMIT</button>
       </div>
-    </div>
-    <!-- Pending approvals (owner/admin sees these) -->
-    <div id="pendingNamesSection" style="display:none;margin-bottom:10px;">
-      <div style="font-size:10px;letter-spacing:2px;color:var(--admin);text-transform:uppercase;font-weight:600;margin-bottom:6px;">⏳ Pending Approval</div>
-      <div id="pendingNamesList"></div>
+      <!-- Viewer sees only their own pending submission status -->
+      <div id="viewerPendingStatus" style="display:none;margin-top:8px;font-size:11px;color:var(--muted);padding:6px 10px;background:var(--surface2);border-radius:8px;"></div>
     </div>
     <div class="name-list" id="nameList"><div class="empty-state">No names yet.</div></div>
     <button class="clear-all-btn" id="clearAllBtn" style="display:none" onclick="clearAll()">Clear all</button>
@@ -950,6 +947,13 @@
       onkeydown="if(event.key==='Enter')joinByCode()">
     <div id="joinCodeErr" style="font-size:11px;color:var(--accent2);min-height:14px;margin-bottom:6px;"></div>
     <button class="side-join-btn" onclick="joinByCode()">JOIN</button>
+  </div>
+
+  <!-- Pending Name Requests — owner/admin only -->
+  <div class="side-card" id="pendingRequestsCard" style="display:none">
+    <div class="side-card-title">📋 Name Requests</div>
+    <div id="pendingRequestsList" style="display:flex;flex-direction:column;gap:6px;"></div>
+    <div id="pendingRequestsEmpty" style="font-size:11px;color:var(--muted);display:none">No pending requests.</div>
   </div>
 
 <!-- gear card removed — settings now inline -->
@@ -1102,19 +1106,44 @@ async function pushPendingToRoom(){
 }
 
 function renderPendingNames(){
-  const list=document.getElementById('pendingNamesList');
-  if(!list)return;
-  const canApprove = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
-  list.innerHTML=pendingNames.map((p,i)=>`
-    <div class="pending-name-item">
-      <span class="pni-name">${esc(p.name)}</span>
-      <span class="pni-sub">from ${esc(p.submitter)}</span>
-      ${canApprove ? `<button onclick="approvePending(${i})" style="background:var(--admin);color:#0d0d0f;border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;margin-right:4px">✓</button>
-      <button onclick="rejectPending(${i})" style="background:none;border:1px solid var(--accent2);color:var(--accent2);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">✕</button>` : '<span style="font-size:10px;color:var(--muted)">Pending…</span>'}
+  // Viewers: show only their own submission status, no approve/reject
+  if(isViewerInSession()){
+    const statusEl = document.getElementById('viewerPendingStatus');
+    if(statusEl){
+      if(pendingNames.length > 0){
+        statusEl.style.display = 'block';
+        statusEl.textContent = `⏳ "${pendingNames[0].name}" — waiting for approval`;
+      } else {
+        statusEl.style.display = 'none';
+      }
+    }
+    return;
+  }
+  renderPendingRequestsCard();
+}
+
+function renderPendingRequestsCard(){
+  const list  = document.getElementById('pendingRequestsList');
+  const empty = document.getElementById('pendingRequestsEmpty');
+  if(!list) return;
+  if(pendingNames.length === 0){
+    list.innerHTML = '';
+    if(empty) empty.style.display = 'block';
+    return;
+  }
+  if(empty) empty.style.display = 'none';
+  list.innerHTML = pendingNames.map((p,i)=>`
+    <div style="background:var(--surface2);border:1px solid var(--admin);border-radius:8px;padding:8px 10px;">
+      <div style="font-size:12px;font-weight:600;margin-bottom:4px;">${esc(p.name)}</div>
+      <div style="font-size:10px;color:var(--admin);margin-bottom:8px;">from ${esc(p.submitter)}</div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="approvePending(${i})" style="flex:1;background:var(--admin);color:#0d0d0f;border:none;border-radius:6px;padding:5px;font-size:11px;font-weight:700;cursor:pointer;">✓ Add</button>
+        <button onclick="rejectPending(${i})" style="flex:1;background:none;border:1px solid var(--accent2);color:var(--accent2);border-radius:6px;padding:5px;font-size:11px;cursor:pointer;">✕ Deny</button>
+      </div>
     </div>`).join('');
 }
-function approvePending(i){ names.push(pendingNames[i].name); pendingNames.splice(i,1); save(); pushRoomNames(); pushPendingToRoom(); render(); }
-function rejectPending(i){ pendingNames.splice(i,1); pushPendingToRoom(); render(); }
+function approvePending(i){ names.push(pendingNames[i].name); pendingNames.splice(i,1); save(); pushRoomNames(); pushPendingToRoom(); render(); renderPendingRequestsCard(); }
+function rejectPending(i){ pendingNames.splice(i,1); pushPendingToRoom(); render(); renderPendingRequestsCard(); }
 
 // ── Groups ────────────────────────────────────────────────────────────────────
 function renderGroupFilterBar(){
@@ -1217,7 +1246,8 @@ function renderBottomChatMessages(){
         const isMe    = m.user===(currentUser&&currentUser.username);
         const muteBtn = canMute&&!isMe
           ? `<button onclick="toggleMuteUser('${m.user.replace(/'/g,"\'")}',${serverMutes.includes(m.user)?'false':'true'})" style="background:none;border:none;font-size:10px;color:var(--muted);cursor:pointer;margin-left:4px">${serverMutes.includes(m.user)?'🔊':'🔇'}</button>` : '';
-        const ctxAttr = canMute && !isMe ? `oncontextmenu="showChatCtx(event,'${m.user.replace(/'/g,"\'")}',${serverMutes.includes(m.user)})" onclick="showChatCtx(event,'${m.user.replace(/'/g,"\'")}',${serverMutes.includes(m.user)})"` : '';
+        const canCtx = canMute && !isMe;
+        const ctxAttr = canCtx ? `style="cursor:pointer" oncontextmenu="event.preventDefault();showChatCtx(event,'${m.user.replace(/'/g,"\'")}',${serverMutes.includes(m.user)})" onclick="showChatCtx(event,'${m.user.replace(/'/g,"\'")}',${serverMutes.includes(m.user)})"` : '';
         return `<div class="chat-msg${isMuted?' muted-msg':''}" ${ctxAttr}><span class="cm-user" style="color:${roleColor(m.role)}">${esc(m.user)}</span>${esc(m.text)}${muteBtn}</div>`;
       }).join('');
   list.scrollTop = list.scrollHeight;
@@ -1882,7 +1912,7 @@ function render(){
   if(submitRowE) submitRowE.style.display = (joinedRoomCode && myRoomRole==='viewer') ? 'block' : 'none';
   const canManagePendingE = isOwner || isAdmin || myRoomRole==='admin' || myRoomRole==='owner';
   const pendSecE = document.getElementById('pendingNamesSection');
-  if(pendSecE){ pendSecE.style.display = pendingNames.length>0 ? 'block' : 'none'; renderPendingNames(); }
+  if(pendSecE){ pendSecE.style.display = 'none'; } renderPendingNames();
   const list=document.getElementById('nameList');
   if(names.length===0){list.innerHTML='<div class="empty-state">No names yet. Add some above!</div>';updatePill();return;}
   list.innerHTML='';
@@ -1940,6 +1970,13 @@ function updateSidePanel(){
   const inAnySession = !!(activeRoomCode || joinedRoomCode);
   const showSidePanel = inAnySession || (!isOwner && !inSession);
   sp.style.display = showSidePanel ? 'flex' : 'none';
+  // Pending requests card — only owner/admin in active session
+  const prc = document.getElementById('pendingRequestsCard');
+  if(prc){
+    const canManage = (isOwner||isAdmin||myRoomRole==='admin'||myRoomRole==='owner') && inAnySession;
+    prc.style.display = canManage ? 'block' : 'none';
+    renderPendingRequestsCard();
+  }
   // Side chat card
   // Bottom chat panel
   const bcp = document.getElementById('bottomChatPanel');
@@ -1955,9 +1992,9 @@ function updateSidePanel(){
 
   // Join card — non-owners not in any session
   if(joinCard) joinCard.style.display = (!isOwner && !inSession) ? 'block' : 'none';
-  // Lobby join row
+  // Lobby join row — show for anyone not currently in a session
   const ljr = document.getElementById('lobbyJoinRow');
-  if(ljr) ljr.style.display = (!isOwner && !inSession) ? 'block' : 'none';
+  if(ljr) ljr.style.display = !inSession ? 'block' : 'none';
 }
 
 // ── Name actions ──────────────────────────────────────────────────────────────
