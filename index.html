@@ -437,6 +437,10 @@
   .chat-msg .cm-user { font-weight:700; margin-right:4px; }
   .chat-msg.cm-system { color:var(--muted); font-style:italic; font-size:10px; }
   .chat-msg.muted-msg { opacity:0.35; }
+  .chat-context-menu { position:fixed; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:6px 0; z-index:999; min-width:140px; box-shadow:0 8px 24px #00000077; animation:fadeIn 0.1s ease; }
+  .chat-ctx-item { padding:8px 14px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:8px; color:var(--text); }
+  .chat-ctx-item:hover { background:var(--surface2); }
+  .chat-ctx-item.danger { color:var(--accent2); }
   .chat-input-row { display:flex; gap:6px; }
   .chat-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:5px 9px; color:var(--text); font-size:12px; outline:none; font-family:'DM Sans',sans-serif; }
   .chat-input:focus { border-color:var(--accent); }
@@ -1213,7 +1217,8 @@ function renderBottomChatMessages(){
         const isMe    = m.user===(currentUser&&currentUser.username);
         const muteBtn = canMute&&!isMe
           ? `<button onclick="toggleMuteUser('${m.user.replace(/'/g,"\'")}',${serverMutes.includes(m.user)?'false':'true'})" style="background:none;border:none;font-size:10px;color:var(--muted);cursor:pointer;margin-left:4px">${serverMutes.includes(m.user)?'🔊':'🔇'}</button>` : '';
-        return `<div class="chat-msg${isMuted?' muted-msg':''}"><span class="cm-user" style="color:${roleColor(m.role)}">${esc(m.user)}</span>${esc(m.text)}${muteBtn}</div>`;
+        const ctxAttr = canMute && !isMe ? `oncontextmenu="showChatCtx(event,'${m.user.replace(/'/g,"\'")}',${serverMutes.includes(m.user)})" onclick="showChatCtx(event,'${m.user.replace(/'/g,"\'")}',${serverMutes.includes(m.user)})"` : '';
+        return `<div class="chat-msg${isMuted?' muted-msg':''}" ${ctxAttr}><span class="cm-user" style="color:${roleColor(m.role)}">${esc(m.user)}</span>${esc(m.text)}${muteBtn}</div>`;
       }).join('');
   list.scrollTop = list.scrollHeight;
   if(!bottomChatOpen){ bottomUnreadCount++; updateBottomChatBadge(); }
@@ -2585,8 +2590,13 @@ async function pollRoom(){
       }
       names = room.names;
       // Sync pending names submitted by viewers
-      if(room.pending_names && JSON.stringify(room.pending_names) !== JSON.stringify(pendingNames)){
+      // Only owner/admin should sync pending from server; viewers keep local list
+      if((myRoomRole==='admin'||myRoomRole==='owner') && room.pending_names){
         pendingNames = room.pending_names.filter(p=>!names.some(n=>n.toLowerCase()===p.name.toLowerCase()));
+        render();
+      } else if(myRoomRole==='viewer' && room.pending_names){
+        // Viewer: remove any that got approved (now in names list)
+        pendingNames = pendingNames.filter(p=>!names.some(n=>n.toLowerCase()===p.name.toLowerCase()));
         render();
       }
       if(room.last_pick && room.last_pick !== lastPick){
@@ -2600,7 +2610,9 @@ async function pollRoom(){
     }
     // Sync pending names for owner from room data
     if(isRoomOwner && room.pending_names){
+      const prev = JSON.stringify(pendingNames);
       pendingNames = room.pending_names.filter(p=>!names.some(n=>n.toLowerCase()===p.name.toLowerCase()));
+      if(JSON.stringify(pendingNames) !== prev) render();
     }
     renderSessionBar(room);
     // Detect new joiners and show toast
