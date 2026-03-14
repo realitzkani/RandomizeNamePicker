@@ -1891,8 +1891,22 @@ function pickName(){
       rolling=false;
       lastWinners=[picked];
       if(!allowRepeats){recentPicks.push(picked);if(recentPicks.length>Math.floor(names.length/2))recentPicks.shift();}
+      pickHistory.unshift({name:picked,time:Date.now()});
+      if(pickHistory.length>50)pickHistory.pop();
+      pickCounts[picked]=(pickCounts[picked]||0)+1;
+      if(currentStreak.name===picked){currentStreak.count++;}else{currentStreak={name:picked,count:1};}
+      LSSet('pickHistory',JSON.stringify(pickHistory));
+      LSSet('pickCounts',JSON.stringify(pickCounts));
+      renderPickHistory();
+      if(autoRemove){const idx=names.indexOf(picked);if(idx>-1){names.splice(idx,1);save();pushRoomNames();}}
+      if(confettiOn) launchConfetti();
+      showWinnerMessage(picked);
       pushRoomPick(picked);
       render();
+      requestAnimationFrame(()=>{
+        const nl=document.getElementById('nameList');
+        if(nl&&nl.firstChild) nl.firstChild.scrollIntoView({behavior:'smooth',block:'nearest'});
+      });
     }
   },rollSpeed);
 }
