@@ -2532,12 +2532,10 @@ async function pollChat(){
         chatMessages.push({user:m.username,text:m.message,role:m.role,time:new Date(m.sent_at).getTime()});
         if(m.id>lastChatId) lastChatId=m.id;
       });
-      renderChatMessages();
       renderSideChatMessages();
-      if(!chatOpen) chatUnread+=data.messages.length;
     }
-    // Update mute buttons without re-rendering if no new messages
-    if(data.muted) renderChatMessages();
+    // Update mute buttons
+    if(data.muted) renderSideChatMessages();
   }catch{}
 }
 
