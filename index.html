@@ -409,20 +409,22 @@
   .group-filter-btn { font-size:11px; background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:4px 12px; cursor:pointer; color:var(--muted); transition:all 0.15s; }
   .group-filter-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
 
-  /* Bottom Chat Panel */
-  .bottom-chat-panel { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:min(560px,90vw); z-index:45; background:var(--surface); border:1px solid var(--border); border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -4px 24px #00000055; }
-  .bottom-chat-header { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; cursor:pointer; border-bottom:1px solid var(--border); }
-  .bottom-chat-header-title { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:8px; }
-  .bottom-chat-unread { background:var(--accent); color:#000; border-radius:20px; padding:1px 7px; font-size:10px; font-weight:700; }
+  /* Left Chat Panel */
+  .bottom-chat-panel { position:fixed; top:50%; left:20px; transform:translateY(-50%); z-index:40; width:220px; background:var(--surface); border:1px solid var(--border); border-radius:16px; display:flex; flex-direction:column; overflow:hidden; }
+  .bottom-chat-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border); }
+  .bottom-chat-header-title { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:6px; }
+  .bottom-chat-unread { background:var(--accent); color:#000; border-radius:20px; padding:1px 6px; font-size:9px; font-weight:700; }
   .bottom-chat-body { display:none; flex-direction:column; }
   .bottom-chat-body.open { display:flex; }
-  .bottom-chat-messages { max-height:200px; overflow-y:auto; padding:10px 16px; display:flex; flex-direction:column; gap:5px; }
+  .bottom-chat-messages { max-height:260px; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:4px; }
   .bottom-chat-messages::-webkit-scrollbar { width:3px; }
   .bottom-chat-messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
-  .bottom-chat-input-row { display:flex; gap:8px; padding:10px 16px 14px; border-top:1px solid var(--border); }
-  .bottom-chat-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 14px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; outline:none; }
+  .bottom-chat-input-row { display:flex; gap:6px; padding:8px 10px 12px; border-top:1px solid var(--border); }
+  .bottom-chat-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; outline:none; min-width:0; }
   .bottom-chat-input:focus { border-color:var(--accent); }
-  .bottom-chat-send { background:var(--accent); color:#000; border:none; border-radius:10px; padding:10px 18px; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px; cursor:pointer; flex-shrink:0; }
+  .bottom-chat-send { background:var(--accent); color:#000; border:none; border-radius:8px; padding:8px 10px; font-size:14px; cursor:pointer; flex-shrink:0; }
+  @media(max-width:900px){ .bottom-chat-panel { width:180px; } }
+  @media(max-width:600px){ .bottom-chat-panel { display:none !important; } }
 
   /* Chat (inside session bar) */
   .session-chat-section { border-top:1px solid var(--border); margin-top:10px; padding-top:10px; }
@@ -905,7 +907,7 @@
       💬 Session Chat
       <span id="bottomChatUnread" class="bottom-chat-unread" style="display:none">0</span>
     </span>
-    <span id="bottomChatArrow" style="font-size:12px;color:var(--muted)">▲ Open</span>
+    <span id="bottomChatArrow" style="font-size:12px;color:var(--muted)">▼</span>
   </div>
   <div class="bottom-chat-body" id="bottomChatBody">
     <div class="bottom-chat-messages" id="bottomChatMessages">
