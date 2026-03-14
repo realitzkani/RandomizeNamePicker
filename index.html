@@ -487,7 +487,7 @@
   </div>
 </div>
 <div id="versionBadgeWrap" style="display:none;position:fixed;top:72px;right:16px;z-index:49;">
-  <span class="version-badge" onclick="openChangelog()" style="font-size:9px;padding:2px 9px;gap:4px"><span class="version-dot" style="width:5px;height:5px"></span>BETA 1.0.4</span>
+  <span class="version-badge" onclick="openChangelog()" style="font-size:9px;padding:2px 9px;gap:4px"><span class="version-dot" style="width:5px;height:5px"></span>BETA 1.0.5</span>
 </div>
 <div class="account-dropdown" id="accountDropdown">
   <div class="dropdown-header">
@@ -512,7 +512,7 @@
     <div class="screen-icon">🎲</div>
     <h2 style="color:var(--accent)">RANDOM NAME PICKER</h2>
     <div style="display:flex;justify-content:center;margin-bottom:10px">
-      <span class="version-badge" id="authVersionBadge" onclick="toggleAuthChangelog()"><span class="version-dot"></span>BETA 1.0.4 — What's New</span>
+      <span class="version-badge" id="authVersionBadge" onclick="toggleAuthChangelog()"><span class="version-dot"></span>BETA 1.0.5 — What's New</span>
     </div>
     <p>Create an account or log in. Your role and history are saved across all devices.</p>
     <div class="screen-tab-row">
@@ -559,9 +559,22 @@
       <span style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--accent)">🎲 What's New</span>
       <button onclick="toggleAuthChangelog()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1">✕</button>
     </div>
+    <!-- Beta 1.0.5 -->
+    <div class="changelog-version" style="margin-bottom:12px">
+      <span class="changelog-version-tag">BETA 1.0.5</span>
+      <span class="changelog-version-label">Current</span>
+      <span class="changelog-date">Mar 2026</span>
+    </div>
+    <div class="changelog-section-title">🔧 Fixes &amp; Updates</div>
+    <div class="changelog-item"><span class="ci-tag fix">FIX</span>Winner overlay no longer auto-closes — only owner can dismiss it</div>
+    <div class="changelog-item"><span class="ci-tag new">NEW</span>Owner can cancel a roll mid-spin with ✕ CANCEL button</div>
+    <div class="changelog-item"><span class="ci-tag fix">FIX</span>Winners to Pick slider now saves and works correctly</div>
+    <div class="changelog-item"><span class="ci-tag new">NEW</span>Owners/Admins can customize the Pick button text in title settings</div>
+    <div style="border-top:1px solid var(--border);margin:14px 0"></div>
+
     <!-- Beta 1.0.4 -->
     <div class="changelog-version" style="margin-bottom:12px">
-      <span class="changelog-version-tag">BETA 1.0.4</span>
+      <span class="changelog-version-tag">BETA 1.0.5</span>
       <span class="changelog-version-label">Current</span>
       <span class="changelog-date">Mar 2026</span>
     </div>
@@ -695,6 +708,14 @@
         </div>
       </div>
     </div>
+    <hr class="editor-divider">
+    <div class="editor-row">
+      <div class="field-group" style="width:100%">
+        <span class="editor-label">Pick Button Text</span>
+        <input type="text" id="pickBtnInput" placeholder="e.g. PICK A NAME" maxlength="30"
+          style="width:100%" oninput="document.getElementById('pickBtn').textContent=this.value||'PICK A NAME'">
+      </div>
+    </div>
     <button class="title-save-btn" onclick="saveTitleSettings()">SAVE</button>
   </div>
 
@@ -708,6 +729,7 @@
       <div class="result-name" id="resultName">—</div>
       <div class="result-btn-row">
         <button class="pick-btn" id="pickBtn" onclick="pickName()" disabled>PICK A NAME</button>
+        <button id="cancelRollBtn" onclick="cancelRoll()" style="display:none;background:var(--surface2);border:1px solid var(--accent2);color:var(--accent2);border-radius:10px;padding:14px 18px;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;cursor:pointer;">✕ CANCEL</button>
       </div>
       <!-- Inline randomizer settings — owner/admin only -->
       <div id="inlineRandSettings" style="display:none;width:100%;margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">
@@ -919,6 +941,7 @@ let autoRemove    = LS('autoRemove','0') === '1';
 let confettiOn    = LS('confettiOn','1') === '1';
 let winnersCount  = parseInt(LS('winnersCount','1'));
 let winnerMsg     = LS('winnerMsg','Congratulations [name]! 🎉');
+let pickBtnText   = LS('pickBtnText','PICK A NAME');
 let lastWinners   = [];          // names highlighted green after pick
 let groups        = LSJ('groups', {});   // {groupName: [names]}
 let activeGroup   = null;        // null = all names
@@ -953,6 +976,7 @@ function save(){
   LSSet('confettiOn',confettiOn?'1':'0');
   LSSet('winnersCount',winnersCount);
   LSSet('winnerMsg',winnerMsg);
+  LSSet('pickBtnText',pickBtnText);
   LSSet('pickHistory',JSON.stringify(pickHistory));
   LSSet('pickCounts',JSON.stringify(pickCounts));
 }
@@ -1185,7 +1209,7 @@ function openChangelog(){
 
       <div class="changelog-section">
         <div class="changelog-version">
-          <span class="changelog-version-tag">BETA 1.0.4</span>
+          <span class="changelog-version-tag">BETA 1.0.5</span>
           <span class="changelog-version-label">Current</span>
           <span class="changelog-date">March 2026</span>
         </div>
@@ -1255,14 +1279,16 @@ function showWinnerMessage(name){
   const msg = winnerMsg.replace(/\[name\]/gi, name);
   const overlay = document.createElement('div');
   overlay.className = 'winner-overlay';
+  const canDismiss = isOwner && !joinedRoomCode;
   overlay.innerHTML = `<div class="winner-msg-box">
     <div class="winner-msg-name">${esc(name)}</div>
     <div class="winner-msg-sub">${esc(msg)}</div>
-    <button class="winner-msg-close" onclick="this.closest('.winner-overlay').remove()">CONTINUE</button>
+    ${canDismiss ? '<button class="winner-msg-close" onclick="document.querySelector(\'.winner-overlay\').remove()">CONTINUE</button>' : ''}
   </div>`;
-  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+  // No auto-close, no click-to-dismiss for non-owners
   document.body.appendChild(overlay);
-  setTimeout(()=>{ if(overlay.parentNode) overlay.remove(); }, 5000);
+  // Owner can close by clicking backdrop too
+  if(canDismiss) overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
 }
 
 // ── Animated Background Particles ───────────────────────────────────────────
@@ -1341,13 +1367,18 @@ function updateSliderFill(el){
   el.style.background=`linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, var(--border) ${pct}%, var(--border) 100%)`;
 }
 function updateRandSettings(){
-  rollSpeed = parseInt(document.getElementById('speedSlider').value);
-  rollTicks = parseInt(document.getElementById('ticksSlider').value);
+  rollSpeed    = parseInt(document.getElementById('speedSlider').value);
+  rollTicks    = parseInt(document.getElementById('ticksSlider').value);
+  allowRepeats = document.getElementById('allowRepeats').checked;
+  autoRemove   = document.getElementById('autoRemove').checked;
+  confettiOn   = document.getElementById('confettiOn').checked;
+  winnersCount = parseInt(document.getElementById('winnersSlider').value);
   updateSliderFill(document.getElementById('speedSlider'));
   updateSliderFill(document.getElementById('ticksSlider'));
-  allowRepeats = document.getElementById('allowRepeats').checked;
-  document.getElementById('speedVal').textContent = rollSpeed+'ms';
-  document.getElementById('ticksVal').textContent = rollTicks;
+  updateSliderFill(document.getElementById('winnersSlider'));
+  document.getElementById('speedVal').textContent    = rollSpeed+'ms';
+  document.getElementById('ticksVal').textContent    = rollTicks;
+  document.getElementById('winnersVal').textContent  = winnersCount;
   document.getElementById('excludeRow').style.display = 'none';
   save();
 }
@@ -1870,6 +1901,17 @@ function startEditName(i, el){
   });
 }
 
+function cancelRoll(){
+  if(!rolling||!isOwner)return;
+  rolling=false;
+  clearInterval(window._rollInterval);
+  const el=document.getElementById('resultName');
+  el.classList.remove('rolling');
+  el.textContent='—';
+  document.getElementById('cancelRollBtn').style.display='none';
+  render();
+}
+
 function pickName(){
   if(names.length===0||rolling)return;
   let pool = names;
@@ -1877,18 +1919,21 @@ function pickName(){
     pool = names.filter(n=>!recentPicks.includes(n));
     if(pool.length===0){recentPicks=[];pool=names;}
   }
-  rolling=true;render();
+  rolling=true;
+  if(isOwner) { const cb=document.getElementById('cancelRollBtn'); if(cb) cb.style.display='flex'; }
+  render();
   const el=document.getElementById('resultName');
   el.classList.add('rolling');
   let ticks=0;
-  const iv=setInterval(()=>{
+  window._rollInterval = setInterval(()=>{
     el.textContent=pool[Math.floor(Math.random()*pool.length)];
     if(++ticks>=rollTicks){
-      clearInterval(iv);
+      clearInterval(window._rollInterval);
       const picked=pool[Math.floor(Math.random()*pool.length)];
       el.textContent=picked;
       el.classList.remove('rolling');
       rolling=false;
+      const cb=document.getElementById('cancelRollBtn'); if(cb) cb.style.display='none';
       lastWinners=[picked];
       if(!allowRepeats){recentPicks.push(picked);if(recentPicks.length>Math.floor(names.length/2))recentPicks.shift();}
       pickHistory.unshift({name:picked,time:Date.now()});
@@ -1912,7 +1957,7 @@ function pickName(){
 }
 
 // ── Title editor ──────────────────────────────────────────────────────────────
-function toggleTitleEditor(){if(!canEditTitle())return;const ed=document.getElementById('titleEditor');const open=ed.classList.toggle('open');if(open){document.getElementById('titleInput').value=titleText;document.getElementById('titleColorCustom').value=titleColor;document.getElementById('textColorCustom').value=titleTextColor;markSwatch('titleSwatches',titleColor);markSwatch('textSwatches',titleTextColor);}}
+function toggleTitleEditor(){if(!canEditTitle())return;const ed=document.getElementById('titleEditor');const open=ed.classList.toggle('open');if(open){document.getElementById('titleInput').value=titleText;document.getElementById('titleColorCustom').value=titleColor;document.getElementById('textColorCustom').value=titleTextColor;document.getElementById('pickBtnInput').value=pickBtnText;markSwatch('titleSwatches',titleColor);markSwatch('textSwatches',titleTextColor);}}
 function previewTitle(){const v=document.getElementById('titleInput').value.trim();document.getElementById('mainTitle').textContent=v||titleText;}
 function selectTitleSwatch(el){clearSwatches('titleSwatches');el.classList.add('active');document.getElementById('titleColorCustom').value=el.dataset.color;applyAccent(el.dataset.color,titleTextColor);}
 function customTitleColor(c){clearSwatches('titleSwatches');applyAccent(c,titleTextColor);}
@@ -1920,7 +1965,15 @@ function selectTextSwatch(el){clearSwatches('textSwatches');el.classList.add('ac
 function customTextColor(c){clearSwatches('textSwatches');document.documentElement.style.setProperty('--title-text',c);}
 function clearSwatches(id){document.getElementById(id).querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));}
 function markSwatch(id,color){clearSwatches(id);const el=document.getElementById(id).querySelector(`[data-color="${color}"]`);if(el)el.classList.add('active');}
-function saveTitleSettings(){const v=document.getElementById('titleInput').value.trim();if(v)titleText=v;titleColor=document.getElementById('titleColorCustom').value;titleTextColor=document.getElementById('textColorCustom').value;save();applyTitle();pushRoomColors();render();document.getElementById('titleEditor').classList.remove('open');}
+function saveTitleSettings(){
+  const v=document.getElementById('titleInput').value.trim();if(v)titleText=v;
+  titleColor=document.getElementById('titleColorCustom').value;
+  titleTextColor=document.getElementById('textColorCustom').value;
+  const pb=document.getElementById('pickBtnInput').value.trim();
+  pickBtnText=pb||'PICK A NAME';
+  const btn=document.getElementById('pickBtn'); if(btn) btn.textContent=pickBtnText;
+  save();applyTitle();pushRoomColors();render();document.getElementById('titleEditor').classList.remove('open');
+}
 
 // ── Access modal ──────────────────────────────────────────────────────────────
 async function openAdminAccessPanel(){
@@ -2086,7 +2139,7 @@ async function submitJoin(){
 }
 function enterApp(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
 function skipJoin(){document.getElementById('joinScreen').style.display='none';history.replaceState(null,'',window.location.pathname);showApp();}
-function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();render();renderSessionBar();updateMusicVisibility();updateSliderFill(document.getElementById('volumeSlider'));renderPickHistory();renderLinkPlaylists();}
+function showApp(){document.getElementById('appContainer').style.display='';applyTitle();initRandSettings();const pb=document.getElementById('pickBtn');if(pb)pb.textContent=pickBtnText;render();renderSessionBar();updateMusicVisibility();updateSliderFill(document.getElementById('volumeSlider'));renderPickHistory();renderLinkPlaylists();}
 function updateMusicVisibility(){
   const mp=document.getElementById('musicPlayer');
   if(!mp)return;
