@@ -913,9 +913,9 @@
   <div class="side-card" id="sideChatCard" style="display:none;padding:0;overflow:hidden;border:1px solid var(--border);">
     <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleSideChat()">
       <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:600;">💬 Chat</span>
-      <span id="sideChatArrow" style="font-size:11px;color:var(--muted);">▼</span>
+      <span id="sideChatArrow" style="font-size:11px;color:var(--muted);">▲</span>
     </div>
-    <div id="sideChatBody" style="display:none">
+    <div id="sideChatBody" style="display:block">
       <div class="chat-messages" id="sideChatMessages" style="max-height:180px;padding:10px;"></div>
       <div style="padding:0 8px 8px;display:flex;gap:6px;">
         <input class="chat-input" id="sideChatInput" placeholder="Say something…" maxlength="200"
@@ -1128,7 +1128,7 @@ function deleteGroup(g){ delete groups[g]; if(activeGroup===g)activeGroup=null; 
 function toggleNameInGroup(g,n){ if(!groups[g])groups[g]=[]; const idx=groups[g].indexOf(n); if(idx>-1)groups[g].splice(idx,1); else groups[g].push(n); LSSet('groups',JSON.stringify(groups)); }
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
-let sideChatOpen = false;
+let sideChatOpen = true;
 function toggleSideChat(){
   sideChatOpen=!sideChatOpen;
   const body=document.getElementById('sideChatBody');
@@ -1200,7 +1200,6 @@ function renderChatMessages(){
     </div>`;
   }).join('');
   list.scrollTop=list.scrollHeight;
-  if(!chatOpen){chatUnread++;updateChatBadge();}
 }
 async function toggleMuteUser(username, mute){
   const code=getRoomCode();
@@ -2643,18 +2642,6 @@ function renderSessionBar(room){
         <div class="session-member-list">
           ${members.filter(m=>m.role!=='owner').map(m=>{const em=m.role==='admin'?'⚡':'👁';return `<span class="session-member-chip ${m.role==='admin'?'admin-chip':''}" style="display:inline-flex;align-items:center;gap:4px">${em} ${m.username}<button onclick="kickMember('${activeRoomCode}','${m.username.replace(/'/g,"\\'")}',this)" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1">✕</button></span>`;}).join('')}
         </div>
-      <div class="session-chat-section" id="chatSection">
-        <button class="session-chat-toggle" onclick="toggleChatSection()">
-          <span>💬 Chat</span><span id="chatToggleArrow">▼</span>
-        </button>
-        <div id="chatBody" style="display:none">
-          <div class="chat-messages" id="chatMessages"><div class="chat-msg cm-system">Chat is live — say something!</div></div>
-          <div class="chat-input-row">
-            <input class="chat-input" id="chatInput" placeholder="Say something…" maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
-            <button class="chat-send-btn" onclick="sendChat()">➤</button>
-          </div>
-        </div>
-      </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <button class="session-btn" onclick="copySessionLink('${viewerLink}','view')">📋 Viewer Link</button>
@@ -2664,13 +2651,6 @@ function renderSessionBar(room){
       </div>
     `;
     if(startBtn) startBtn.style.display='none';
-    // Restore focus to chat input if it was focused
-    if(chatInputFocused){ const ci=document.getElementById('chatInput'); if(ci) ci.focus(); }
-    // Restore chat open state
-    const cb=document.getElementById('chatBody');
-    const ca=document.getElementById('chatToggleArrow');
-    if(cb){ cb.style.display=chatOpen?'block':'none'; if(ca) ca.textContent=chatOpen?'▲':'▼'; }
-    if(chatOpen){ const msgs=document.getElementById('chatMessages'); if(msgs){ renderChatMessages(); msgs.scrollTop=msgs.scrollHeight; } }
     // Restore collapse state
     const colBtn=document.getElementById('sessionCollapseBtn');
     if(colBtn) colBtn.textContent=sessionBarCollapsed?'▼ Expand':'▲ Collapse';
@@ -2702,18 +2682,6 @@ function renderSessionBar(room){
             return '<span class="session-member-chip '+(m.role==='owner'?'owner-chip':m.role==='admin'?'admin-chip':'')+'" style="display:inline-flex;align-items:center;gap:4px">'+m.username+(canKick?'<button onclick="kickMember(\''+code+'\',\''+m.username.replace(/'/g,"\\'")+'\')" style="background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1">✕</button>':'')+'</span>';
           }).join('')}
         </div>
-      <div class="session-chat-section" id="chatSection">
-        <button class="session-chat-toggle" onclick="toggleChatSection()">
-          <span>💬 Chat</span><span id="chatToggleArrow">▼</span>
-        </button>
-        <div id="chatBody" style="display:none">
-          <div class="chat-messages" id="chatMessages"><div class="chat-msg cm-system">Chat is live — say something!</div></div>
-          <div class="chat-input-row">
-            <input class="chat-input" id="chatInput" placeholder="Say something…" maxlength="200" onkeydown="if(event.key==='Enter')sendChat()">
-            <button class="chat-send-btn" onclick="sendChat()">➤</button>
-          </div>
-        </div>
-      </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <button class="session-btn end-btn" onclick="leaveSession()">Leave Session</button>
@@ -2721,13 +2689,6 @@ function renderSessionBar(room){
       </div>
     `;
     if(startBtn) startBtn.style.display='none';
-    // Restore focus
-    if(chatInputFocused){ const vci=document.getElementById('chatInput'); if(vci) vci.focus(); }
-    // Restore chat open state
-    const vcb=document.getElementById('chatBody');
-    const vca=document.getElementById('chatToggleArrow');
-    if(vcb){ vcb.style.display=chatOpen?'block':'none'; if(vca) vca.textContent=chatOpen?'▲':'▼'; }
-    if(chatOpen){ const vmsgs=document.getElementById('chatMessages'); if(vmsgs){ renderChatMessages(); vmsgs.scrollTop=vmsgs.scrollHeight; } }
     // Restore collapse state
     const vColBtn=document.getElementById('sessionCollapseBtn');
     if(vColBtn) vColBtn.textContent=sessionBarCollapsed?'▼ Expand':'▲ Collapse';
