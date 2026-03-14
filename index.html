@@ -387,10 +387,11 @@
   .ci-tag.improved { background:#6366f128; color:#a5b4fc; border:1px solid #6366f1; }
 
   /* Winner highlight in name list */
-  .name-item.winner { background:#16a34a28; border-color:#16a34a; animation:winnerRise 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+  .name-item.winner { background:linear-gradient(90deg,#16a34a22,#16a34a10); border-color:#16a34a; box-shadow:0 0 12px #16a34a33; animation:winnerRise 0.6s cubic-bezier(0.34,1.56,0.64,1); }
   .name-item.winner .name-text { color:#4ade80; font-weight:700; }
-  .winner-crown { font-size:13px; }
-  @keyframes winnerRise { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+  .winner-badge { font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:2px; background:#16a34a; color:#fff; border-radius:6px; padding:2px 8px; flex-shrink:0; animation:winnerPulse 1s ease infinite alternate; }
+  @keyframes winnerPulse { from{opacity:1} to{opacity:0.6} }
+  @keyframes winnerRise { from{transform:translateY(16px);opacity:0;} to{transform:translateY(0);opacity:1;} }
 
   /* Submit name (viewer) */
   .submit-name-row { display:flex; gap:8px; margin-bottom:8px; }
@@ -1760,8 +1761,8 @@ function render(){
     const div=document.createElement('div');
     div.className='name-item'+(isDupe?' duplicate':'')+(isWinner?' winner':'');
     div.innerHTML=`
-      ${isWinner?'<span class="winner-crown">👑</span>':''}
       <span class="name-text" ondblclick="${canEdit()?`startEditName(${realIdx},this)`:''}" title="${canEdit()?'Double-click to edit':''}">${esc(name)}</span>
+      ${isWinner?'<span class="winner-badge">🏆 WINNER!</span>':''}
       ${isDupe?'<span class="dupe-tag">Duplicate</span>':''}
       ${canEdit()?`<button class="edit-name-btn" onclick="startEditName(${realIdx},this.previousElementSibling)" title="Edit">✎</button>`:''}
       ${canEdit()?`<button class="remove-btn" onclick="removeName(${realIdx})">×</button>`:''}
