@@ -410,20 +410,20 @@
   .group-filter-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
 
   /* Left Chat Panel */
-  .bottom-chat-panel { position:fixed; top:50%; left:20px; transform:translateY(-50%); z-index:40; width:220px; background:var(--surface); border:1px solid var(--border); border-radius:16px; display:flex; flex-direction:column; overflow:hidden; }
+  .bottom-chat-panel { position:fixed; top:50%; left:20px; transform:translateY(-50%); z-index:40; width:260px; background:var(--surface); border:1px solid var(--border); border-radius:16px; display:flex; flex-direction:column; overflow:hidden; }
   .bottom-chat-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border); }
   .bottom-chat-header-title { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:6px; }
   .bottom-chat-unread { background:var(--accent); color:#000; border-radius:20px; padding:1px 6px; font-size:9px; font-weight:700; }
   .bottom-chat-body { display:none; flex-direction:column; }
   .bottom-chat-body.open { display:flex; }
-  .bottom-chat-messages { max-height:260px; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:4px; }
+  .bottom-chat-messages { max-height:300px; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:4px; }
   .bottom-chat-messages::-webkit-scrollbar { width:3px; }
   .bottom-chat-messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
   .bottom-chat-input-row { display:flex; gap:6px; padding:8px 10px 12px; border-top:1px solid var(--border); }
-  .bottom-chat-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; outline:none; min-width:0; }
+  .bottom-chat-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; outline:none; min-width:0; }
   .bottom-chat-input:focus { border-color:var(--accent); }
   .bottom-chat-send { background:var(--accent); color:#000; border:none; border-radius:8px; padding:8px 10px; font-size:14px; cursor:pointer; flex-shrink:0; }
-  @media(max-width:900px){ .bottom-chat-panel { width:180px; } }
+  @media(max-width:900px){ .bottom-chat-panel { width:220px; } }
   @media(max-width:600px){ .bottom-chat-panel { display:none !important; } }
 
   /* Chat (inside session bar) */
@@ -1159,87 +1159,80 @@ function deleteGroup(g){ delete groups[g]; if(activeGroup===g)activeGroup=null; 
 function toggleNameInGroup(g,n){ if(!groups[g])groups[g]=[]; const idx=groups[g].indexOf(n); if(idx>-1)groups[g].splice(idx,1); else groups[g].push(n); LSSet('groups',JSON.stringify(groups)); }
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
-let sideChatOpen = true;
-function toggleSideChat(){
-  sideChatOpen=!sideChatOpen;
-  const body=document.getElementById('sideChatBody');
-  const arrow=document.getElementById('sideChatArrow');
-  if(body) body.style.display=sideChatOpen?'block':'none';
-  if(arrow) arrow.textContent=sideChatOpen?'▲':'▼';
-  if(sideChatOpen) renderSideChatMessages();
-}
-function sendSideChat(){
-  const inp=document.getElementById('sideChatInput');
-  const text=inp?.value.trim();
-  if(!text||!currentUser)return;
-  inp.value='';
-  const code=getRoomCode();
-  if(!code)return;
-  api('POST','/rooms/'+code+'/chat',{message:text}).then(()=>pollChat()).catch(e=>{
-    if(e.message?.includes('muted')) showSuccessToast('Muted','You have been muted');
-  });
-}
-function renderSideChatMessages(){
-  const list=document.getElementById('sideChatMessages');
-  if(!list||!sideChatOpen)return;
-  const roleColor=r=>r==='owner'?'var(--accent)':r==='admin'?'var(--admin)':'var(--muted)';
-  const canMute=isOwner||isAdmin||myRoomRole==='admin'||myRoomRole==='owner';
-  list.innerHTML=chatMessages.length===0?'<div class="chat-msg cm-system">No messages yet.</div>':chatMessages.map(m=>{
-    const isMuted=serverMutes.includes(m.user);
-    const isMe=m.user===currentUser?.username;
-    const muteBtn=canMute&&!isMe?`<button onclick="toggleMuteUser('${m.user.replace(/'/g,"\\'")}',${serverMutes.includes(m.user)?'false':'true'})" style="background:none;border:none;font-size:10px;color:var(--muted);cursor:pointer;margin-left:4px">${serverMutes.includes(m.user)?'🔊':'🔇'}</button>`:'';
-    return `<div class="chat-msg${isMuted?' muted-msg':''}"><span class="cm-user" style="color:${roleColor(m.role)}">${esc(m.user)}</span>${esc(m.text)}${muteBtn}</div>`;
-  }).join('');
-  list.scrollTop=list.scrollHeight;
-}
+let bottomChatOpen    = false;
+let bottomUnreadCount = 0;
 
-function toggleChatSection(){
-  const body=document.getElementById('chatBody');
-  const arrow=document.getElementById('chatToggleArrow');
-  if(!body)return;
-  chatOpen=body.style.display==='none';
-  body.style.display=chatOpen?'block':'none';
-  if(arrow) arrow.textContent=chatOpen?'▲':'▼';
-  if(chatOpen){ const msgs=document.getElementById('chatMessages'); if(msgs)msgs.scrollTop=msgs.scrollHeight; }
-}
-function toggleChat(){ toggleChatSection(); }
-function updateChatBadge(){}
-async function sendChat(){
-  const inp=document.getElementById('chatInput');
-  const text=inp.value.trim();
-  if(!text||!currentUser)return;
-  inp.value='';
-  const code=getRoomCode();
-  if(!code)return;
-  try{
-    await api('POST','/rooms/'+code+'/chat',{message:text});
-    await pollChat(); // immediate refresh
-  }catch(e){
-    if(e.message&&e.message.includes('muted')){showSuccessToast('Muted ','You have been muted in this session');}
-    else{ showSuccessToast('Error','Could not send message'); }
+function toggleBottomChat(){
+  bottomChatOpen = !bottomChatOpen;
+  const body  = document.getElementById('bottomChatBody');
+  const arrow = document.getElementById('bottomChatArrow');
+  if(body)  body.classList.toggle('open', bottomChatOpen);
+  if(arrow) arrow.textContent = bottomChatOpen ? '▲' : '▼';
+  if(bottomChatOpen){
+    bottomUnreadCount = 0;
+    updateBottomChatBadge();
+    renderBottomChatMessages();
+    setTimeout(()=>{ const inp=document.getElementById('bottomChatInput'); if(inp) inp.focus(); }, 50);
   }
 }
-function renderChatMessages(){
-  const list=document.getElementById('chatMessages');
-  if(!list)return;
-  const roleColor=r=>r==='owner'?'var(--accent)':r==='admin'?'var(--admin)':'var(--muted)';
-  list.innerHTML=chatMessages.map(m=>{
-    const isMuted=mutedUsers.includes(m.user);
-    return `<div class="chat-msg${isMuted?' muted-msg':''}">
-      <span class="cm-user" style="color:${roleColor(m.role)}">${esc(m.user)}</span>${esc(m.text)}
-      ${(isOwner||(isAdmin&&m.role==='viewer'))&&m.user!==currentUser?.username?`<button onclick="toggleMute('${m.user.replace(/'/g,"\\'")}');renderChatMessages();" style="background:none;border:none;font-size:10px;color:var(--muted);cursor:pointer;margin-left:4px">${mutedUsers.includes(m.user)?'🔊':'🔇'}</button>`:''}
-    </div>`;
-  }).join('');
-  list.scrollTop=list.scrollHeight;
+
+function updateBottomChatBadge(){
+  const badge = document.getElementById('bottomChatUnread');
+  if(!badge) return;
+  if(bottomUnreadCount > 0){ badge.textContent = bottomUnreadCount; badge.style.display = 'inline-block'; }
+  else badge.style.display = 'none';
 }
-async function toggleMuteUser(username, mute){
-  const code=getRoomCode();
-  if(!code)return;
-  try{
-    await api('POST','/rooms/'+code+'/mute',{username, mute});
+
+async function sendBottomChat(){
+  const inp = document.getElementById('bottomChatInput');
+  if(!inp) return;
+  const text = inp.value.trim();
+  if(!text) return;
+  if(!currentUser){ showSuccessToast('Not logged in','Please log in to chat'); return; }
+  const code = getRoomCode();
+  if(!code){ showSuccessToast('No session','Join a session to chat'); return; }
+  inp.value = '';
+  chatMessages.push({user:currentUser.username, text, role:joinedRoomCode?myRoomRole:(isOwner?'owner':'viewer'), time:Date.now()});
+  renderBottomChatMessages();
+  try {
+    await api('POST','/rooms/'+code+'/chat',{message:text});
     await pollChat();
-  }catch(e){ showSuccessToast('Error','Could not update mute'); }
+  } catch(e) {
+    chatMessages.pop();
+    renderBottomChatMessages();
+    if(e.message && e.message.includes('muted')) showSuccessToast('Muted','You are muted in this session');
+    else showSuccessToast('Error', e.message||'Could not send message');
+  }
 }
+
+function renderBottomChatMessages(){
+  const list = document.getElementById('bottomChatMessages');
+  if(!list) return;
+  const roleColor = r => r==='owner'?'var(--accent)':r==='admin'?'var(--admin)':'var(--muted)';
+  const canMute = isOwner||isAdmin||myRoomRole==='admin'||myRoomRole==='owner';
+  list.innerHTML = chatMessages.length===0
+    ? '<div class="chat-msg cm-system">No messages yet.</div>'
+    : chatMessages.map(m=>{
+        const isMuted = serverMutes.includes(m.user);
+        const isMe    = m.user===(currentUser&&currentUser.username);
+        const muteBtn = canMute&&!isMe
+          ? `<button onclick="toggleMuteUser('${m.user.replace(/'/g,"\'")}',${serverMutes.includes(m.user)?'false':'true'})" style="background:none;border:none;font-size:10px;color:var(--muted);cursor:pointer;margin-left:4px">${serverMutes.includes(m.user)?'🔊':'🔇'}</button>` : '';
+        return `<div class="chat-msg${isMuted?' muted-msg':''}"><span class="cm-user" style="color:${roleColor(m.role)}">${esc(m.user)}</span>${esc(m.text)}${muteBtn}</div>`;
+      }).join('');
+  list.scrollTop = list.scrollHeight;
+  if(!bottomChatOpen){ bottomUnreadCount++; updateBottomChatBadge(); }
+}
+
+// All old aliases point here
+function renderSideChatMessages(){ renderBottomChatMessages(); }
+function renderChatMessages(){ renderBottomChatMessages(); }
+function toggleChatSection(){ toggleBottomChat(); }
+function toggleSideChat(){ toggleBottomChat(); }
+function toggleChat(){ toggleBottomChat(); }
+function updateChatBadge(){}
+async function sendChat(){ await sendBottomChat(); }
+async function sendSideChat(){ await sendBottomChat(); }
+
 
 // ── Pick History & Leaderboard ──────────────────────────────────────────────
 let historyTab = 'history';
