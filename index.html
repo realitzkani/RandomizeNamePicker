@@ -2572,6 +2572,16 @@ function renderSessionBar(room){
       </div>
     `;
     if(startBtn) startBtn.style.display='none';
+    // Restore chat open state
+    const cb=document.getElementById('chatBody');
+    const ca=document.getElementById('chatToggleArrow');
+    if(cb){ cb.style.display=chatOpen?'block':'none'; if(ca) ca.textContent=chatOpen?'▲':'▼'; }
+    if(chatOpen){ const msgs=document.getElementById('chatMessages'); if(msgs){ renderChatMessages(); msgs.scrollTop=msgs.scrollHeight; } }
+    // Restore collapse state
+    const colBtn=document.getElementById('sessionCollapseBtn');
+    if(colBtn) colBtn.textContent=sessionBarCollapsed?'▼ Expand':'▲ Collapse';
+    const summary=document.getElementById('sessionCollapseSummary');
+    if(summary) summary.style.display=sessionBarCollapsed?'block':'none';
     // update side panel connected count
     const sc=document.getElementById('sideConnected');
     if(sc && room) sc.textContent=room.member_count+' connected';
@@ -2617,7 +2627,14 @@ function renderSessionBar(room){
       </div>
     `;
     if(startBtn) startBtn.style.display='none';
-
+    // Restore chat open state
+    const vcb=document.getElementById('chatBody');
+    const vca=document.getElementById('chatToggleArrow');
+    if(vcb){ vcb.style.display=chatOpen?'block':'none'; if(vca) vca.textContent=chatOpen?'▲':'▼'; }
+    if(chatOpen){ const vmsgs=document.getElementById('chatMessages'); if(vmsgs){ renderChatMessages(); vmsgs.scrollTop=vmsgs.scrollHeight; } }
+    // Restore collapse state
+    const vColBtn=document.getElementById('sessionCollapseBtn');
+    if(vColBtn) vColBtn.textContent=sessionBarCollapsed?'▼ Expand':'▲ Collapse';
 
   } else {
     bar.style.display='none';
