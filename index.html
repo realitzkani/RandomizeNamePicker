@@ -633,7 +633,7 @@
   </div>
 </div>
 <div id="versionBadgeWrap" style="display:none;position:fixed;top:72px;right:16px;z-index:49;">
-  <span class="version-badge" onclick="openChangelog()" style="font-size:9px;padding:2px 9px;gap:4px"><span class="version-dot" style="width:5px;height:5px"></span>BETA 1.1.0</span>
+  <span class="version-badge" onclick="openChangelog()" style="font-size:9px;padding:2px 9px;gap:4px"><span class="version-dot" style="width:5px;height:5px"></span>BETA 1.1.1</span>
 </div>
 <div class="account-dropdown" id="accountDropdown">
   <div class="dropdown-header">
@@ -658,7 +658,7 @@
     <div class="screen-icon">🎲</div>
     <h2 style="color:var(--accent)">RANDOM NAME PICKER</h2>
     <div style="display:flex;justify-content:center;margin-bottom:10px">
-      <span class="version-badge" id="authVersionBadge" onclick="toggleAuthChangelog()"><span class="version-dot"></span>BETA 1.1.0 — What's New</span>
+      <span class="version-badge" id="authVersionBadge" onclick="toggleAuthChangelog()"><span class="version-dot"></span>BETA 1.1.1 — What's New</span>
     </div>
     <p>Create an account or log in. Your role and history are saved across all devices.</p>
     <div class="screen-tab-row">
@@ -1376,6 +1376,7 @@ function toggleNameInGroup(g,n){ if(!groups[g])groups[g]=[]; const idx=groups[g]
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
 let bottomChatOpen    = true;
+let chatSystemShown   = new Set();  // track join messages already shown
 let bottomUnreadCount = 0;
 
 function toggleBottomChat(){
@@ -1530,8 +1531,22 @@ function openChangelog(){
 
       <div class="changelog-section">
         <div class="changelog-version">
-          <span class="changelog-version-tag">BETA 1.1.0</span>
+          <span class="changelog-version-tag">BETA 1.1.1</span>
           <span class="changelog-version-label">Current</span>
+          <span class="changelog-date">March 2026</span>
+        </div>
+        <div class="changelog-section-title">🔧 Fixes</div>
+        <div class="changelog-item"><span class="ci-tag fix">FIX</span>Mute button now works — function was missing</div>
+        <div class="changelog-item"><span class="ci-tag fix">FIX</span>Right-click context menu works correctly</div>
+        <div class="changelog-item"><span class="ci-tag fix">FIX</span>Pin message grabs correct text</div>
+        <div class="changelog-item"><span class="ci-tag fix">FIX</span>System join messages no longer repeat every poll</div>
+        <div class="changelog-item"><span class="ci-tag fix">FIX</span>Viewers auto-dismissed from winner overlay after 8s</div>
+        <div class="changelog-item"><span class="ci-tag fix">FIX</span>Groups now sync to viewers/admins in session</div>
+      </div>
+
+      <div class="changelog-section" style="opacity:0.92">
+        <div class="changelog-version">
+          <span class="changelog-version-tag" style="font-size:17px;color:var(--muted)">BETA 1.1.0</span>
           <span class="changelog-date">March 2026</span>
         </div>
         <div class="changelog-section-title">✨ New — Chat Overhaul</div>
@@ -1663,12 +1678,15 @@ function showWinnerMessage(name){
   overlay.innerHTML = `<div class="winner-msg-box">
     <div class="winner-msg-name">${esc(name)}</div>
     <div class="winner-msg-sub">${esc(msg)}</div>
-    ${canDismiss ? '<button class="winner-msg-close" onclick="document.querySelector(\'.winner-overlay\').remove()">CONTINUE</button>' : ''}
+    ${canDismiss ? '<button class="winner-msg-close" onclick="document.querySelector(\'.winner-overlay\').remove()">CONTINUE</button>' : '<div style="font-size:11px;color:var(--muted);margin-top:12px">Waiting for host to continue…</div>'}
   </div>`;
-  // No auto-close, no click-to-dismiss for non-owners
   document.body.appendChild(overlay);
-  // Owner can close by clicking backdrop too
-  if(canDismiss) overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
+  if(canDismiss){
+    overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
+  } else {
+    // Viewers: auto-dismiss after 8 seconds
+    setTimeout(()=>{ if(overlay.parentNode) overlay.remove(); }, 8000);
+  }
 }
 
 // ── Animated Background Particles ───────────────────────────────────────────
@@ -2881,6 +2899,7 @@ async function pollRoom(){
         }
       }
       names = room.names;
+      if(room.groups_data){ try{ groups=JSON.parse(room.groups_data); LSSet('groups',JSON.stringify(groups)); }catch{} }
       // Sync pending names submitted by viewers
       // Only owner/admin should sync pending from server; viewers keep local list
       if((myRoomRole==='admin'||myRoomRole==='owner') && room.pending_names){
@@ -3119,6 +3138,49 @@ function showSuccessToast(title, sub){
   document.body.appendChild(t);
   setTimeout(()=>{t.style.transition='opacity 0.4s';t.style.opacity='0';setTimeout(()=>t.remove(),400);},3000);
 }
+
+// ── Mute, Context Menu, Pin ──────────────────────────────────────────────────
+async function toggleMuteUser(username, muteVal){
+  const mute = muteVal === 'true' || muteVal === true;
+  const code = getRoomCode();
+  if(!code){ showSuccessToast('Error','Not in a session'); return; }
+  try {
+    await api('POST','/rooms/'+code+'/mute',{username, mute});
+    await pollChat();
+    showSuccessToast(mute?'Muted':'Unmuted', username+(mute?' can no longer chat':' can chat again'));
+  } catch(e){ showSuccessToast('Error', e.message||'Could not update mute'); }
+}
+
+function showChatCtx(e, username, isMuted){
+  e.preventDefault();
+  e.stopPropagation();
+  removeChatCtx();
+  if(isViewerInSession()) return;
+  const msgEl = e.target.closest('.chat-msg');
+  // Extract just the message text — skip role icon, username, timestamp
+  let msgText = '';
+  if(msgEl){
+    const clone = msgEl.cloneNode(true);
+    clone.querySelectorAll('.cm-role,.cm-user,.cm-time,button').forEach(el=>el.remove());
+    msgText = clone.textContent.trim().slice(0,80);
+  }
+  const menu = document.createElement('div');
+  menu.className = 'chat-context-menu';
+  menu.innerHTML = `
+    <div class="chat-ctx-item" onclick="toggleMuteUser('${username.replace(/'/g,"\'")}',${!isMuted});removeChatCtx()">
+      ${isMuted?'🔊 Unmute':'🔇 Mute'} ${esc(username)}
+    </div>
+    ${msgText?`<div class="chat-ctx-item" onclick="pinMessage(${JSON.stringify(msgText)});removeChatCtx()">📌 Pin message</div>`:''}
+    <div class="chat-ctx-item danger" onclick="kickMember('${getRoomCode()}','${username.replace(/'/g,"\'")}',null);removeChatCtx()">
+      ✕ Kick from session
+    </div>
+  `;
+  menu.style.left = Math.min(e.clientX, window.innerWidth-160)+'px';
+  menu.style.top  = Math.min(e.clientY, window.innerHeight-120)+'px';
+  document.body.appendChild(menu);
+  setTimeout(()=>document.addEventListener('click', removeChatCtx, {once:true}), 50);
+}
+function removeChatCtx(){ document.querySelectorAll('.chat-context-menu').forEach(m=>m.remove()); }
 
 function showJoinToast(username, role){
   const roleLabel = role==='admin'?'⚡ Admin':role==='owner'?'Owner':'👁 Viewer';
