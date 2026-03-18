@@ -437,6 +437,20 @@
   .chat-msg .cm-user { font-weight:700; margin-right:4px; }
   .chat-msg.cm-system { color:var(--muted); font-style:italic; font-size:10px; }
   .chat-msg.muted-msg { opacity:0.35; }
+  .chat-msg.cm-mention { background:var(--accent-dim); border-radius:6px; padding:2px 4px; margin:-2px -4px; }
+  .chat-mention-tag { color:var(--accent); font-weight:700; }
+  .chat-msg .cm-time { font-size:9px; color:var(--muted); margin-left:6px; flex-shrink:0; }
+  .chat-msg .cm-role { font-size:10px; margin-right:3px; }
+  .chat-pinned-bar { background:var(--accent-dim); border-bottom:1px solid var(--accent); padding:6px 12px; font-size:11px; display:flex; align-items:center; gap:6px; }
+  .chat-pinned-bar .pin-icon { font-size:12px; flex-shrink:0; }
+  .chat-pinned-bar .pin-text { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
+  .chat-pinned-bar .pin-unpin { background:none; border:none; color:var(--muted); cursor:pointer; font-size:11px; padding:0; }
+  .chat-tools-bar { display:flex; align-items:center; gap:6px; padding:4px 10px 0; border-top:1px solid var(--border); }
+  .chat-tool-btn { background:none; border:1px solid var(--border); color:var(--muted); border-radius:6px; font-size:10px; padding:3px 8px; cursor:pointer; transition:all 0.15s; }
+  .chat-tool-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .chat-tool-btn.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
+  .chat-char-count { font-size:9px; color:var(--muted); margin-left:auto; flex-shrink:0; }
+  .slow-mode-indicator { font-size:10px; color:var(--accent2); padding:3px 8px; border-top:1px solid var(--border); text-align:center; }
   .chat-context-menu { position:fixed; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:6px 0; z-index:999; min-width:140px; box-shadow:0 8px 24px #00000077; animation:fadeIn 0.1s ease; }
   .chat-ctx-item { padding:8px 14px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:8px; color:var(--text); }
   .chat-ctx-item:hover { background:var(--surface2); }
@@ -619,7 +633,7 @@
   </div>
 </div>
 <div id="versionBadgeWrap" style="display:none;position:fixed;top:72px;right:16px;z-index:49;">
-  <span class="version-badge" onclick="openChangelog()" style="font-size:9px;padding:2px 9px;gap:4px"><span class="version-dot" style="width:5px;height:5px"></span>BETA 1.0.9</span>
+  <span class="version-badge" onclick="openChangelog()" style="font-size:9px;padding:2px 9px;gap:4px"><span class="version-dot" style="width:5px;height:5px"></span>BETA 1.1.0</span>
 </div>
 <div class="account-dropdown" id="accountDropdown">
   <div class="dropdown-header">
@@ -644,7 +658,7 @@
     <div class="screen-icon">🎲</div>
     <h2 style="color:var(--accent)">RANDOM NAME PICKER</h2>
     <div style="display:flex;justify-content:center;margin-bottom:10px">
-      <span class="version-badge" id="authVersionBadge" onclick="toggleAuthChangelog()"><span class="version-dot"></span>BETA 1.0.9 — What's New</span>
+      <span class="version-badge" id="authVersionBadge" onclick="toggleAuthChangelog()"><span class="version-dot"></span>BETA 1.1.0 — What's New</span>
     </div>
     <p>Create an account or log in. Your role and history are saved across all devices.</p>
     <div class="screen-tab-row">
@@ -693,7 +707,7 @@
     </div>
     <!-- Beta 1.0.8 -->
     <div class="changelog-version" style="margin-bottom:12px">
-      <span class="changelog-version-tag">BETA 1.0.9</span>
+      <span class="changelog-version-tag">BETA 1.1.0</span>
       <span class="changelog-version-label">Current</span>
       <span class="changelog-date">Mar 2026</span>
     </div>
@@ -1053,13 +1067,29 @@
     <span id="bottomChatArrow" style="font-size:12px;color:var(--muted)">▲</span>
   </div>
   <div class="bottom-chat-body open" id="bottomChatBody">
+    <!-- Pinned message bar -->
+    <div class="chat-pinned-bar" id="chatPinnedBar" style="display:none">
+      <span class="pin-icon">📌</span>
+      <span class="pin-text" id="chatPinnedText"></span>
+      <button class="pin-unpin" id="chatUnpinBtn" onclick="unpinMessage()" style="display:none">✕</button>
+    </div>
     <div class="bottom-chat-messages" id="bottomChatMessages">
       <div class="chat-msg cm-system">Chat is live — say something!</div>
     </div>
+    <!-- Owner tools bar -->
+    <div class="chat-tools-bar" id="chatToolsBar" style="display:none">
+      <button class="chat-tool-btn" id="slowModeBtn" onclick="toggleSlowMode()" title="Slow mode">🐢 Slow</button>
+      <button class="chat-tool-btn" onclick="clearAllChat()" title="Clear chat">🗑️ Clear</button>
+    </div>
+    <div class="slow-mode-indicator" id="slowModeCountdown" style="display:none"></div>
     <div class="bottom-chat-input-row">
       <input class="bottom-chat-input" id="bottomChatInput" placeholder="Type a message…" maxlength="200"
-        onkeydown="if(event.key==='Enter')sendBottomChat()">
+        onkeydown="if(event.key==='Enter')sendBottomChat()"
+        oninput="updateChatCharCount()">
       <button class="bottom-chat-send" onclick="sendBottomChat()">SEND</button>
+    </div>
+    <div style="display:flex;justify-content:flex-end;padding:0 10px 6px;">
+      <span class="chat-char-count" id="chatCharCount">200</span>
     </div>
   </div>
 </div>
@@ -3004,6 +3034,7 @@ async function leaveSession(){
   // Show disconnecting overlay
   const overlay = document.createElement('div');
   overlay.style.cssText='position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;animation:fadeIn 0.2s ease';
+  chatMessages.push({system:true, text:`You left the session`, time:Date.now()});
   overlay.innerHTML='<div style="font-size:32px">🔌</div>'
     +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;letter-spacing:3px;color:var(--muted)">Disconnecting from</div>'
     +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:36px;letter-spacing:3px;color:var(--accent)">'+ownerName+'</div>';
