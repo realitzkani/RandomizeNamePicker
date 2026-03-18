@@ -1303,6 +1303,12 @@ function renderPendingRequestsCard(){
   const list  = document.getElementById('pendingRequestsList');
   const empty = document.getElementById('pendingRequestsEmpty');
   if(!list) return;
+  // Also make sure the card is visible for owner/admin
+  const prc = document.getElementById('pendingRequestsCard');
+  const inAnySession = !!(activeRoomCode || joinedRoomCode);
+  if(prc && (isOwner||isAdmin||myRoomRole==='admin'||myRoomRole==='owner') && inAnySession && !isViewerInSession()){
+    prc.style.display = 'block';
+  }
   if(pendingNames.length === 0){
     list.innerHTML = '';
     if(empty) empty.style.display = 'block';
@@ -2217,9 +2223,9 @@ function updateSidePanel(){
   // Pending requests card — only owner/admin in active session
   const prc = document.getElementById('pendingRequestsCard');
   if(prc){
-    const canManage = (isOwner||isAdmin||myRoomRole==='admin'||myRoomRole==='owner') && inAnySession;
+    const canManage = (isOwner||isAdmin||myRoomRole==='admin'||myRoomRole==='owner') && inAnySession && !isViewerInSession();
     prc.style.display = canManage ? 'block' : 'none';
-    renderPendingRequestsCard();
+    if(canManage) renderPendingRequestsCard();
   }
   // Side chat card
   // Bottom chat panel
@@ -2898,7 +2904,10 @@ async function pollRoom(){
     if(isRoomOwner && room.pending_names){
       const prev = JSON.stringify(pendingNames);
       pendingNames = room.pending_names.filter(p=>!names.some(n=>n.toLowerCase()===p.name.toLowerCase()));
-      if(JSON.stringify(pendingNames) !== prev) render();
+      if(JSON.stringify(pendingNames) !== prev){
+        render();
+        renderPendingRequestsCard();
+      }
     }
     renderSessionBar(room);
     // Detect new joiners and show toast
