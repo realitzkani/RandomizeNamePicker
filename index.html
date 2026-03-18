@@ -509,7 +509,7 @@
   </div>
 </div>
 <div id="versionBadgeWrap" style="display:none;position:fixed;top:72px;right:16px;z-index:49;">
-  <span class="version-badge" onclick="openChangelog()" style="font-size:9px;padding:2px 9px;gap:4px"><span class="version-dot" style="width:5px;height:5px"></span>BETA 1.0.7</span>
+  <span class="version-badge" onclick="openChangelog()" style="font-size:9px;padding:2px 9px;gap:4px"><span class="version-dot" style="width:5px;height:5px"></span>BETA 1.0.8</span>
 </div>
 <div class="account-dropdown" id="accountDropdown">
   <div class="dropdown-header">
@@ -534,7 +534,7 @@
     <div class="screen-icon">🎲</div>
     <h2 style="color:var(--accent)">RANDOM NAME PICKER</h2>
     <div style="display:flex;justify-content:center;margin-bottom:10px">
-      <span class="version-badge" id="authVersionBadge" onclick="toggleAuthChangelog()"><span class="version-dot"></span>BETA 1.0.7 — What's New</span>
+      <span class="version-badge" id="authVersionBadge" onclick="toggleAuthChangelog()"><span class="version-dot"></span>BETA 1.0.8 — What's New</span>
     </div>
     <p>Create an account or log in. Your role and history are saved across all devices.</p>
     <div class="screen-tab-row">
@@ -583,7 +583,7 @@
     </div>
     <!-- Beta 1.0.6 -->
     <div class="changelog-version" style="margin-bottom:12px">
-      <span class="changelog-version-tag">BETA 1.0.7</span>
+      <span class="changelog-version-tag">BETA 1.0.8</span>
       <span class="changelog-version-label">Current</span>
       <span class="changelog-date">Mar 2026</span>
     </div>
@@ -965,7 +965,7 @@
 
 <script>
 const API = 'https://randomizenamepickerbackend-production.up.railway.app';
-const OWNER_TOKEN = 'owner-secret';
+// OWNER_TOKEN removed from frontend for security
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const LS    = (k,fb)  => { try{const v=localStorage.getItem(k);return v!==null?v:fb}catch{return fb} };
@@ -1009,13 +1009,11 @@ let winnersCount  = parseInt(LS('winnersCount','1'));
 let winnerMsg     = LS('winnerMsg','Congratulations [name]! 🎉');
 let pickBtnText   = LS('pickBtnText','PICK A NAME');
 let lastWinners   = [];          // names highlighted green after pick
+let winnerClearTimer = null;     // clears winner after 8 seconds
 let groups        = LSJ('groups', {});   // {groupName: [names]}
 let activeGroup   = null;        // null = all names
-let pendingNames  = [];          // [{name, submitter}] waiting for approval
-let mutedUsers    = LSJ('mutedUsers', []); // usernames muted by owner/admin
+let pendingNames  = LSJ('pendingNames',[]);  // [{name, submitter}] — persisted
 let chatMessages  = [];
-let chatOpen      = false;
-let chatUnread    = 0;
 let lastChatId    = 0;
 let serverMutes   = [];
 let musicExpanded = false;
@@ -1100,6 +1098,7 @@ function submitName(){
 }
 
 async function pushPendingToRoom(){
+  LSSet('pendingNames', JSON.stringify(pendingNames));
   const code = getRoomCode();
   if(!code) return;
   try { await api('PUT','/rooms/'+code,{ pending_names: pendingNames }); } catch {}
@@ -1332,7 +1331,7 @@ function openChangelog(){
 
       <div class="changelog-section">
         <div class="changelog-version">
-          <span class="changelog-version-tag">BETA 1.0.7</span>
+          <span class="changelog-version-tag">BETA 1.0.8</span>
           <span class="changelog-version-label">Current</span>
           <span class="changelog-date">March 2026</span>
         </div>
@@ -1914,10 +1913,13 @@ function render(){
   const pendSecE = document.getElementById('pendingNamesSection');
   if(pendSecE){ pendSecE.style.display = 'none'; } renderPendingNames();
   const list=document.getElementById('nameList');
-  if(names.length===0){list.innerHTML='<div class="empty-state">No names yet. Add some above!</div>';updatePill();return;}
-  list.innerHTML='';
-  // Filter by active group
+  if(names.length===0){list.innerHTML='<div class="empty-state">No names yet. Add some above!</div>';list.dataset.hash='';updatePill();return;}
+  // Smart diff — only rebuild if content actually changed
   const displayNames = activeGroup && groups[activeGroup] ? names.filter(n=>groups[activeGroup].includes(n)) : names;
+  const newHash = displayNames.join('|')+'|'+lastWinners.join('|')+'|'+canEdit();
+  if(list.dataset.hash === newHash){ updatePill(); return; }
+  list.dataset.hash = newHash;
+  list.innerHTML='';
   displayNames.forEach((name,i)=>{
     const realIdx = names.indexOf(name);
     const isDupe=freq[name.toLowerCase()]>1;
@@ -2009,10 +2011,10 @@ function addName(){
     setTimeout(()=>{inp.style.borderColor='';inp.style.animation='';},1500);
     return;
   }
-  names.push(name);save();pushRoomNames();inp.value='';inp.focus();render();
+  names.push(name);save();pushRoomNames();inp.value='';inp.focus();const nl=document.getElementById('nameList');if(nl)nl.dataset.hash='';render();
 }
 
-function removeName(i){if(!canEdit())return;names.splice(i,1);save();pushRoomNames();render();}
+function removeName(i){if(!canEdit())return;names.splice(i,1);save();pushRoomNames();const nl=document.getElementById('nameList');if(nl)nl.dataset.hash='';render();}
 function clearAll(){if(!canEdit())return;if(!confirm('Remove all names?'))return;names=[];recentPicks=[];save();document.getElementById('resultName').textContent='—';render();}
 
 function startEditName(i, el){
@@ -2083,6 +2085,8 @@ function pickName(){
       rolling=false;
       const cb=document.getElementById('cancelRollBtn'); if(cb) cb.style.display='none';
       lastWinners=[picked];
+      if(winnerClearTimer) clearTimeout(winnerClearTimer);
+      winnerClearTimer = setTimeout(()=>{ lastWinners=[]; render(); }, 8000);
       if(!allowRepeats){recentPicks.push(picked);if(recentPicks.length>Math.floor(names.length/2))recentPicks.shift();}
       pickHistory.unshift({name:picked,time:Date.now()});
       if(pickHistory.length>50)pickHistory.pop();
@@ -2229,7 +2233,7 @@ async function saveAdminPassword(){
   const btn=document.querySelector('.admin-primary');
   if(btn){btn.disabled=true;btn.textContent='Saving…';}
   try{
-    await api('POST','/owner/set-admin-password',{ownerToken:OWNER_TOKEN,adminPassword:v},false);
+    await api('POST','/owner/set-admin-password',{adminPassword:v},false);
     showSuccessToast('✓ Password saved', 'Admin password has been updated');
     openAdminAccessPanel();
   }catch(e){
@@ -2239,7 +2243,7 @@ async function saveAdminPassword(){
 }
 async function removeAdminPassword(){
   try{
-    await api('DELETE','/owner/remove-admin-password',{ownerToken:OWNER_TOKEN},false);
+    await api('DELETE','/owner/remove-admin-password',{},false);
     closeModal();
     openAccessModal();
   }catch(e){alert(e.message);}
@@ -2570,15 +2574,15 @@ async function joinRoom(code, asAdmin=false, adminPw=''){
   }
 }
 
+let chatPollTimer = null;
 function startRoomPoll(){
   stopRoomPoll();
   lastChatId=0; chatMessages=[];
   pollRoom();
   pollChat();
-  roomPollTimer = setInterval(pollRoom, 2500);
-  chatPollTimer = setInterval(pollChat, 2000);
+  roomPollTimer = setInterval(()=>{ pollRoom(); }, 2500);
+  chatPollTimer = setInterval(()=>{ pollChat(); }, 2000);
 }
-let chatPollTimer = null;
 function stopRoomPoll(){
   if(roomPollTimer){ clearInterval(roomPollTimer); roomPollTimer=null; }
   if(chatPollTimer){ clearInterval(chatPollTimer); chatPollTimer=null; }
